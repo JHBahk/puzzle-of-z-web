@@ -21,6 +21,9 @@ button.outline{border:1px solid #c5cfdb;background:white;color:#223852}
 .coordinate-grid>div{background:#f1f4fa;border-radius:12px;text-align:center;padding:11px 5px}
 .coordinate-grid b{display:block;font-size:42px;font-variant-numeric:tabular-nums;letter-spacing:-1px}
 .coordinate-grid span{font-size:13px;color:var(--muted)}
+.next-preview{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;margin:9px 0 13px;border:1px solid #dce4ef;border-radius:10px;background:#f7f9fc;color:#40536b;font-variant-numeric:tabular-nums}
+.next-preview-label{font-size:12px;font-weight:650;white-space:nowrap}
+.next-preview-coords{font-size:15px;font-weight:700;letter-spacing:.1px;text-align:right}
 .inforow{display:flex;gap:7px;flex-wrap:wrap;font-size:13px;color:#334962}
 .pill{padding:4px 9px;background:#e9eef6;border-radius:99px}
 #statusText{font-size:13px;color:#475c74;min-height:20px}
@@ -89,6 +92,10 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
    <span class="pill" id="distance">거리 —</span>
   </div>
   <p class="muted" id="targetName"></p>
+  <div class="next-preview" id="nextPreview" aria-label="다음 순번의 좌표 미리보기">
+   <span id="nextPreviewLabel" class="next-preview-label">다음 좌표</span>
+   <span id="nextPreviewCoords" class="next-preview-coords">—</span>
+  </div>
   <div class="row" style="margin:15px 0">
    <button class="green" id="attacked">공격 완료</button>
    <button class="danger" id="missing">실종</button>
@@ -173,9 +180,9 @@ async function update(path,oldSha,value,summary){
  return check;
 }
 function active(){if(!config)return null;return config.routes.find(r=>r.route_id===route?.route_id);}
-function currentData(){
- if(!targets||!route)return null;
- const oldNumber=route.web_order_numbers[step-1];
+function currentData(atStep=step){
+ if(!targets||!route||atStep<1||atStep>route.web_order_numbers.length)return null;
+ const oldNumber=route.web_order_numbers[atStep-1];
  const history=targets.value.recommendation_history.find(h=>h.route_id===route.route_id);
  if(!history)throw Error("기존 추천 기록이 없습니다: "+route.route_id);
  const entry=history.numbered_targets.find(e=>e.number===oldNumber);
@@ -197,6 +204,9 @@ function render(){
  $("star").textContent="★"+(d.entry.star_tier??d.target.star_tier??0);
  $("distance").textContent="거리 "+(d.target.distance??"—");
  $("targetName").textContent=d.target.nickname?d.target.nickname+" · "+d.target.id:d.target.id;
+ const upcoming=currentData(step+1);
+ $("nextPreviewLabel").textContent=upcoming?"다음 "+(step+1)+"번":"마지막 좌표";
+ $("nextPreviewCoords").textContent=upcoming?"X "+upcoming.target.x+" · Y "+upcoming.target.y:"다음 좌표 없음";
  $("targetStatus").textContent=status(d);
  $("attacked").disabled=busy||status(d)!=="미진행";
  $("missing").disabled=busy||status(d)==="실종"||status(d)==="활동 유저";
