@@ -31,6 +31,17 @@ details{margin-top:12px} summary{cursor:pointer;font-weight:650;padding:6px 0}
 fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
 .help{font-size:12px;color:var(--muted);line-height:1.55}
 #signedInAs{font-size:12px;color:var(--muted)}.spacer{height:5px} .badge{background:#f0eee6;border-radius:6px;padding:3px 8px;font-size:12px}
+
+.tabbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.tabbar button{background:#e1e7f0;color:#304461}
+.tabbar button.active{background:#2358b8;color:white}
+.scout-section{margin:16px 0 20px}.scout-section h3{margin:0 0 7px;font-size:17px;padding:9px 0;border-bottom:1px solid var(--line)}
+.scout-list{list-style:none;padding:0;margin:0}
+.scout-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #ecf0f4;padding:10px 2px;font-variant-numeric:tabular-nums}
+.scout-list li:last-child{border-bottom:0}
+.scout-coord{font-size:16px;font-weight:650}
+.scout-detail{font-size:12px;color:var(--muted);text-align:right;overflow-wrap:anywhere}
+.scout-subtle{color:var(--muted);font-size:13px;padding:10px 0}
 @media(max-width:360px){.coordinate-grid b{font-size:35px}button{font-size:14px;padding:11px 6px}}
 </style>
 </head>
@@ -46,14 +57,18 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
  <div id="loginMsg" class="message" style="display:none"></div>
 </section>
 <section id="app">
- <section class="panel">
+ <nav class="tabbar" aria-label="페이지 선택">
+  <button type="button" id="tabRaid" class="active" aria-pressed="true">출정 코스</button>
+  <button type="button" id="tabScout" aria-pressed="false">Y구간 수색</button>
+ </nav>
+ <section class="panel" id="coursePanel">
   <div class="headerrow"><h2>출정 코스</h2><span id="signedInAs"></span></div>
   <label for="courseSelect">코스 선택</label>
   <select id="courseSelect"></select>
   <p id="courseInfo" class="muted"></p>
   <div class="row"><button id="reload" class="secondary">GitHub 새로고침</button><button id="logout" class="outline">연결 해제</button></div>
  </section>
- <section class="panel">
+ <section class="panel" id="raidPanel">
   <div class="headerrow">
    <span class="muted">웹 진행 순번</span>
    <span class="badge" id="targetStatus">대기</span>
@@ -67,7 +82,6 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
    <div><span>Y 좌표</span><b id="yVal">—</b></div>
   </div>
   <div class="inforow">
-   <span class="pill" id="oldNum">기존 코스 —</span>
    <span class="pill" id="star">★—</span>
    <span class="pill" id="distance">거리 —</span>
   </div>
@@ -85,7 +99,23 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
    <div class="row"><input id="gotoNumber" type="number" min="1" inputmode="numeric" placeholder="웹 순번"><button id="go">이동</button></div>
   </details>
  </section>
- <section class="panel">
+ <section class="panel" id="scoutPanel" style="display:none">
+  <h2>Y구간 수색 목록</h2>
+  <p class="help">100단위 구간을 선택하면 Y를 20씩 나누고, 각 구간 안에서 X좌표가 작은 순서로 번호를 매겨 보여줍니다. 목록 확인만으로 수색 완료 처리하지 않습니다.</p>
+  <label for="scoutBand">수색할 Y 구간</label>
+  <select id="scoutBand"></select>
+  <div class="row" style="margin-top:10px">
+   <button id="scoutRefresh" class="secondary">목록 새로고침</button>
+   <button id="newFromScout">새 농장 등록</button>
+  </div>
+  <p id="scoutSummary" class="muted"></p>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin:10px 0">
+   <input id="scoutShowMissing" type="checkbox" style="width:auto">
+   실종 농장도 참고용으로 표시
+  </label>
+  <div id="scoutList"></div>
+ </section>
+ <section class="panel" id="registerPanel" style="display:none">
   <h2>새 농장 등록</h2>
   <p class="help">등록한 좌표는 GitHub에 추가됩니다. 기존 코스에는 자동 삽입되지 않으며, 다음 코스 생성 시 반영됩니다. 같은 닉네임이거나 가까운 좌표가 있으면 중복 여부를 검토합니다.</p>
   <div class="row"><div><label for="newX">X</label><input id="newX" type="number" min="0" max="1023" inputmode="numeric"></div>
@@ -112,7 +142,7 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
 const OWNER="JHBahk",REPO="soxl-soxs-trading",BRANCH="game/puzzle-of-z-raid-log",ROOT="game/puzzle-of-z/";
 const PATHS={targets:ROOT+"targets.json",config:ROOT+"current-course.json",progress:ROOT+"course-progress.json"};
 const $=id=>document.getElementById(id);
-let token=sessionStorage.getItem("pz_token")||"", targets=null,config=null,progress=null, route=null,step=1,busy=false;
+let token=sessionStorage.getItem("pz_token")||"", targets=null,config=null,progress=null, route=null,step=1,busy=false,viewMode="raid",scoutRange=null;
 const apiBase="https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/";
 function message(s,kind){const el=$("message");el.textContent=s;el.className="message "+(kind||"");el.style.display="block";}
 function loginMessage(s,kind){const el=$("loginMsg");el.textContent=s;el.className="message "+(kind||"");el.style.display="block";}
@@ -160,19 +190,85 @@ function render(){
  const d=currentData();if(!d)return;
  $("stepNumber").textContent=String(step);$("stepTotal").textContent="/ "+route.web_order_numbers.length;
  $("xVal").textContent=d.target.x;$("yVal").textContent=d.target.y;
- $("oldNum").textContent="원래 "+d.oldNumber+"번";$("star").textContent="★"+(d.entry.star_tier??d.target.star_tier??0);
+ $("star").textContent="★"+(d.entry.star_tier??d.target.star_tier??0);
  $("distance").textContent="거리 "+(d.target.distance??"—");
  $("targetName").textContent=d.target.nickname?d.target.nickname+" · "+d.target.id:d.target.id;
  $("targetStatus").textContent=status(d);
  $("attacked").disabled=busy||status(d)!=="미진행";
  $("missing").disabled=busy||status(d)==="실종"||status(d)==="활동 유저";
  $("prev").disabled=busy||step<=1;$("next").disabled=busy||step>=route.web_order_numbers.length;
- $("courseInfo").textContent="웹 순번 "+step+" / "+route.web_order_numbers.length+" · 원래 코스 "+d.oldNumber+"번 · 5개씩 역순 배치";
+ $("courseInfo").textContent="웹 순번 "+step+" / "+route.web_order_numbers.length+" · NEXT는 표시 순서대로 이동";
  $("statusText").textContent="GitHub와 동기화됨 · NEXT는 공격이 아님";
  $("go").disabled=busy;$("register").disabled=busy;$("reload").disabled=busy;
 }
 function setBusy(v){busy=v;const d=targets&&route?currentData():null;if(d)render();$("login").disabled=v;}
 function showApp(){ $("app").style.display="block";$("loginBox").style.display="none"; }
+function setTab(mode){
+ viewMode=mode==="scout"?"scout":"raid";
+ $("tabRaid").classList.toggle("active",viewMode==="raid");
+ $("tabScout").classList.toggle("active",viewMode==="scout");
+ $("tabRaid").setAttribute("aria-pressed",String(viewMode==="raid"));
+ $("tabScout").setAttribute("aria-pressed",String(viewMode==="scout"));
+ $("coursePanel").style.display=viewMode==="raid"?"block":"none";
+ $("raidPanel").style.display=viewMode==="raid"?"block":"none";
+ $("scoutPanel").style.display=viewMode==="scout"?"block":"none";
+ $("registerPanel").style.display=viewMode==="scout"?"block":"none";
+ if(viewMode==="scout")renderScout();
+}
+function initScoutBand(){
+ if(!targets)return;
+ const plan=targets.value.scouting_progress?.missing_target_rescan_plan||{};
+ const bands=plan.bands||["1-100","101-200","201-300","301-400","401-500","501-600","601-700","701-800","801-900","901-1000","1001-1023"];
+ const completed=new Set((plan.completed_bands||[]).map(b=>b.range));
+ const select=$("scoutBand");
+ select.replaceChildren();
+ for(const s of bands){
+  const opt=document.createElement("option");
+  opt.value=s;opt.textContent="Y "+s+(completed.has(s)?" · 수색 완료":"");
+  select.appendChild(opt);
+ }
+ if(!scoutRange||!bands.includes(scoutRange))scoutRange=plan.next_band||bands[0];
+ select.value=scoutRange;
+}
+function starFromOil(v){
+ if(v==null)return 0;
+ const match=String(v).replace(/,/g,"").replace(/\s/g,"").match(/^(\d+(?:\.\d+)?)(천|K|k|만|M|m)?$/);
+ if(!match)return 0;
+ const mult={천:1000,K:1000,k:1000,만:10000,M:1000000,m:1000000};
+ const oil=Number(match[1])*(mult[match[2]]||1);
+ return oil>=24000?3:oil>=18000?2:oil>=12000?1:0;
+}
+function renderScout(){
+ if(!targets||!scoutRange)return;
+ const [start,end]=scoutRange.split("-").map(Number);
+ const data=targets.value,plan=data.scouting_progress?.missing_target_rescan_plan||{};
+ const completed=new Set((plan.completed_bands||[]).map(x=>x.range));
+ const includeMissing=$("scoutShowMissing").checked;
+ const acceptable=data.targets.filter(t=>Number.isInteger(t.x)&&Number.isInteger(t.y)&&t.y>=start&&t.y<=end&&!t.excluded_from_raid_recommendations&&t.coordinate_status!=="excluded_active_player"&&(includeMissing||t.coordinate_status!=="missing_at_last_known_location"));
+ const root=$("scoutList");root.replaceChildren();
+ $("scoutSummary").textContent="Y "+scoutRange+" · 등록된 농장 "+acceptable.length+"곳"+(completed.has(scoutRange)?" · 수색 완료":" · 완료 보고 전")+(plan.next_band===scoutRange?" · 다음 수색 대상":"");
+ let ordinal=0;
+ for(let bottom=start;bottom<=end;bottom+=20){
+  const top=Math.min(end,bottom+19);
+  const group=acceptable.filter(t=>t.y>=bottom&&t.y<=top).sort((a,b)=>a.x-b.x||a.y-b.y||a.id.localeCompare(b.id));
+  const section=document.createElement("section");section.className="scout-section";
+  const heading=document.createElement("h3");heading.textContent="Y "+bottom+"~"+top+" ("+group.length+"곳)";section.appendChild(heading);
+  if(!group.length){const p=document.createElement("p");p.className="scout-subtle";p.textContent="등록된 정상 농장 없음";section.appendChild(p);}
+  else{
+   const list=document.createElement("ul");list.className="scout-list";
+   for(const t of group){
+    ordinal++;
+    const item=document.createElement("li");
+    const coords=document.createElement("span");coords.className="scout-coord";coords.textContent=ordinal+". ("+t.x+", "+t.y+")";
+    const status=document.createElement("span");status.className="scout-detail";
+    status.textContent="★"+Math.max(t.star_tier??0,starFromOil(t.resources?.oil))+(t.coordinate_status==="missing_at_last_known_location"?" · 실종":"");
+    item.append(coords,status);list.appendChild(item);
+   }
+   section.appendChild(list);
+  }
+  root.appendChild(section);
+ }
+}
 async function loadAll(){
  targets=await read(PATHS.targets);config=(await read(PATHS.config)).value;progress=await read(PATHS.progress);
  const list=config.routes;
@@ -182,7 +278,7 @@ async function loadAll(){
  route=list.find(c=>c.route_id===saved)||list[0];$("courseSelect").value=route.route_id;
  const entry=progress.value.courses?.[route.route_id];
  step=Math.min(route.web_order_numbers.length,Math.max(1,Number(entry?.current_step)||1));
- showApp();render();
+ showApp();render();initScoutBand();renderScout();setTab(viewMode);
 }
 async function connect(){
  if(busy)return;
@@ -291,11 +387,17 @@ async function register(){
   if(!verified.value.targets.some(t=>t.id===id&&t.x===x&&t.y===y))throw Error("신규 등록 검증 실패");
   targets=verified;
   for(const key of ["newX","newY","newDist","newName","newFood","newIron","newOil"])$(key).value="";
-  message(id+" ("+x+", "+y+") GitHub 등록 완료. 다음 코스 설계 때 반영됩니다.","good");
+  renderScout();
+  message(id+" ("+x+", "+y+") GitHub 등록 완료. 수색 목록에도 즉시 반영됐습니다.","good");
  }catch(e){message("등록 실패: "+e.message,"error");}
  finally{setBusy(false);}
 }
 $("login").onclick=connect;$("forget").onclick=forget;$("logout").onclick=forget;
+$("tabRaid").onclick=()=>setTab("raid");$("tabScout").onclick=()=>setTab("scout");
+$("scoutBand").onchange=()=>{scoutRange=$("scoutBand").value;renderScout();};
+$("scoutShowMissing").onchange=renderScout;
+$("scoutRefresh").onclick=async()=>{if(busy)return;setBusy(true);try{targets=await read(PATHS.targets);initScoutBand();renderScout();message("수색 목록을 GitHub 최신 데이터로 갱신했습니다.","good");}catch(e){message("수색 목록 갱신 실패: "+e.message,"error");}finally{setBusy(false);}};
+$("newFromScout").onclick=()=>{$("registerPanel").scrollIntoView({behavior:"smooth",block:"start"});$("newX").focus({preventScroll:true});};
 $("prev").onclick=()=>move(step-1);$("next").onclick=()=>move(step+1);
 $("attacked").onclick=()=>report("raid");$("missing").onclick=()=>report("missing");
 $("reload").onclick=async()=>{if(busy)return;setBusy(true);try{await loadAll();message("최신 GitHub 데이터로 동기화 완료.","good");}catch(e){message("새로고침 실패: "+e.message,"error");}finally{setBusy(false);}};
