@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#142032">
+<title>퍼즐 오브 Z · 폐지줍기</title>
+<style>
+:root {color-scheme:light;--bg:#f4f6fa;--ink:#152032;--muted:#677489;--line:#dce1e8;--accent:#2358b8;--danger:#b33838;--ok:#177449}
+* {box-sizing:border-box} body {margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif}
+main {max-width:540px;margin:0 auto;padding:18px 15px 90px} h1{font-size:23px;margin:7px 0 4px} h2{font-size:17px;margin:0 0 10px} p{margin:7px 0}
+.muted,small{color:var(--muted);font-size:12px} .panel {background:white;border:1px solid var(--line);border-radius:15px;padding:16px;margin:13px 0;box-shadow:0 2px 10px #10204007}
+label {display:block;font-size:13px;font-weight:600;margin-bottom:5px} input,select{width:100%;padding:11px;font-size:16px;border:1px solid #c8d1df;border-radius:10px;background:#fff;color:#182231}
+button {cursor:pointer;border:0;border-radius:10px;padding:13px 10px;font-size:15px;font-weight:650;background:var(--accent);color:white;min-height:46px}
+button:disabled{opacity:.45;cursor:default} button.secondary{background:#e9eef6;color:#20334f} button.danger{background:#b63f45} button.green{background:#177449}
+button.outline{border:1px solid #c5cfdb;background:white;color:#223852}
+.row{display:flex;gap:9px;align-items:center} .row>*{flex:1;min-width:0}.col{display:flex;flex-direction:column;gap:6px}
+#loginBox input{margin-bottom:8px} #app{display:none}.headerrow{display:flex;justify-content:space-between;gap:5px;align-items:baseline}
+.displaynum{font-size:44px;font-weight:790;line-height:1.08;font-variant-numeric:tabular-nums}
+.coordinate-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:13px 0}
+.coordinate-grid>div{background:#f1f4fa;border-radius:12px;text-align:center;padding:11px 5px}
+.coordinate-grid b{display:block;font-size:42px;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.coordinate-grid span{font-size:13px;color:var(--muted)}
+.inforow{display:flex;gap:7px;flex-wrap:wrap;font-size:13px;color:#334962}
+.pill{padding:4px 9px;background:#e9eef6;border-radius:99px}
+#statusText{font-size:13px;color:#475c74;min-height:20px}
+.message{padding:10px;border-radius:10px;background:#eaf1fa;margin:11px 0;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.message.error{background:#ffeaea;color:#922b2b} .message.good{background:#e7f7ec;color:#145a30}
+input[type=number]{font-variant-numeric:tabular-nums}
+details{margin-top:12px} summary{cursor:pointer;font-weight:650;padding:6px 0}
+fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
+.help{font-size:12px;color:var(--muted);line-height:1.55}
+#signedInAs{font-size:12px;color:var(--muted)}.spacer{height:5px} .badge{background:#f0eee6;border-radius:6px;padding:3px 8px;font-size:12px}
+@media(max-width:360px){.coordinate-grid b{font-size:35px}button{font-size:14px;padding:11px 6px}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>폐지줍기 코스</h1><p class="muted">#1056 · GitHub 기준 데이터 · NEXT는 웹 순번대로</p></header>
+<section class="panel" id="loginBox">
+ <h2>GitHub 연결</h2>
+ <p class="help">비공개 저장소의 데이터를 읽고 기록하려면 이 저장소에 Contents 읽기·쓰기 권한이 있는 Fine-grained token이 필요합니다. 토큰은 서버로 보내지 않고 GitHub API에 직접 사용합니다. 이 탭 세션에서만 보관합니다.</p>
+ <label for="token">GitHub 토큰 (ghp_ 또는 github_pat_)</label>
+ <input id="token" type="password" placeholder="GitHub에서 발급한 토큰" autocomplete="off" spellcheck="false">
+ <div class="row"><button id="login">연결하기</button><button id="forget" class="secondary">토큰 지우기</button></div>
+ <div id="loginMsg" class="message" style="display:none"></div>
+</section>
+<section id="app">
+ <section class="panel">
+  <div class="headerrow"><h2>출정 코스</h2><span id="signedInAs"></span></div>
+  <label for="courseSelect">코스 선택</label>
+  <select id="courseSelect"></select>
+  <p id="courseInfo" class="muted"></p>
+  <div class="row"><button id="reload" class="secondary">GitHub 새로고침</button><button id="logout" class="outline">연결 해제</button></div>
+ </section>
+ <section class="panel">
+  <div class="headerrow">
+   <span class="muted">웹 진행 순번</span>
+   <span class="badge" id="targetStatus">대기</span>
+  </div>
+  <div class="headerrow" style="margin-top:3px">
+   <strong class="displaynum" id="stepNumber">—</strong>
+   <span id="stepTotal" class="muted"></span>
+  </div>
+  <div class="coordinate-grid">
+   <div><span>X 좌표</span><b id="xVal">—</b></div>
+   <div><span>Y 좌표</span><b id="yVal">—</b></div>
+  </div>
+  <div class="inforow">
+   <span class="pill" id="oldNum">기존 코스 —</span>
+   <span class="pill" id="star">★—</span>
+   <span class="pill" id="distance">거리 —</span>
+  </div>
+  <p class="muted" id="targetName"></p>
+  <div class="row" style="margin:15px 0">
+   <button class="green" id="attacked">공격 완료</button>
+   <button class="danger" id="missing">실종</button>
+  </div>
+  <div class="row">
+   <button class="secondary" id="prev">이전</button>
+   <button id="next">NEXT</button>
+  </div>
+  <p class="help">NEXT와 이전은 진행 위치만 저장하며, 공격으로 기록하지 않습니다. 공격 완료·실종은 GitHub에 저장 후 다음 좌표로 이동합니다.</p>
+  <details><summary>원하는 웹 순번으로 이동</summary>
+   <div class="row"><input id="gotoNumber" type="number" min="1" inputmode="numeric" placeholder="웹 순번"><button id="go">이동</button></div>
+  </details>
+ </section>
+ <section class="panel">
+  <h2>새 농장 등록</h2>
+  <p class="help">등록한 좌표는 GitHub에 추가됩니다. 기존 코스에는 자동 삽입되지 않으며, 다음 코스 생성 시 반영됩니다. 같은 닉네임이거나 가까운 좌표가 있으면 중복 여부를 검토합니다.</p>
+  <div class="row"><div><label for="newX">X</label><input id="newX" type="number" min="0" max="1023" inputmode="numeric"></div>
+  <div><label for="newY">Y</label><input id="newY" type="number" min="0" max="1023" inputmode="numeric"></div></div>
+  <div class="row" style="margin-top:8px"><div><label for="newStar">별 등급</label><select id="newStar"><option value="0">★0</option><option value="1">★1</option><option value="2">★2</option><option value="3">★3</option></select></div>
+  <div><label for="newDist">거리 (선택)</label><input id="newDist" type="number" min="0" inputmode="numeric" placeholder="자동 추정"></div></div>
+  <label for="newName" style="margin-top:8px">닉네임 (선택)</label><input id="newName" placeholder="게임 화면과 정확히 동일하게">
+  <details><summary>생산건물 자원량 입력 (선택)</summary>
+   <div class="col"><label for="newFood">식량</label><input id="newFood" placeholder="예: 800K"></div>
+   <div class="col"><label for="newIron">철</label><input id="newIron" placeholder="예: 90K"></div>
+   <div class="col"><label for="newOil">기름</label><input id="newOil" placeholder="예: 23.4K"></div>
+   <p class="help">창고 자원과 나무는 제외. 미입력 수치는 추측하지 않습니다.</p>
+  </details>
+  <button id="register" style="width:100%;margin-top:12px" class="secondary">GitHub에 등록</button>
+ </section>
+ <div id="statusText"></div>
+</section>
+<div id="message" class="message" style="display:none"></div>
+<p class="help">자동 게임 조작 기능이 없는 개인용 도구입니다. 이 페이지에 인증 토큰을 넣기 전 출처를 확인하고, 토큰을 다른 사람과 공유하지 마세요. GitHub 저장에 실패하면 완료로 표시하지 않습니다.</p>
+</main>
+<script>
+"use strict";
+(function(){
+const OWNER="JHBahk",REPO="soxl-soxs-trading",BRANCH="game/puzzle-of-z-raid-log",ROOT="game/puzzle-of-z/";
+const PATHS={targets:ROOT+"targets.json",config:ROOT+"current-course.json",progress:ROOT+"course-progress.json"};
+const $=id=>document.getElementById(id);
+let token=sessionStorage.getItem("pz_token")||"", targets=null,config=null,progress=null, route=null,step=1,busy=false;
+const apiBase="https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/";
+function message(s,kind){const el=$("message");el.textContent=s;el.className="message "+(kind||"");el.style.display="block";}
+function loginMessage(s,kind){const el=$("loginMsg");el.textContent=s;el.className="message "+(kind||"");el.style.display="block";}
+function kstNow(){const d=new Date(Date.now()+9*3600000);return d.toISOString().slice(0,19)+"+09:00";}
+function todayKST(){return kstNow().slice(0,10)}
+function bytesFromBase64(b){const binary=atob(b.replace(/\s/g,""));const out=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)out[i]=binary.charCodeAt(i);return new TextDecoder().decode(out);}
+function toBase64(txt){const bytes=new TextEncoder().encode(txt);let binary="";for(let i=0;i<bytes.length;i+=16384)binary+=String.fromCharCode.apply(null,bytes.subarray(i,i+16384));return btoa(binary);}
+async function req(path,opts){
+ const res=await fetch(apiBase+path+(opts.method==="GET"?"?ref="+encodeURIComponent(BRANCH):""),{
+ method:opts.method,
+ headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"},
+ body:opts.body?JSON.stringify(opts.body):undefined,
+ cache:"no-store"
+ });
+ if(!res.ok){let err="HTTP "+res.status;try{const detail=await res.json();err+=" "+String(detail.message||"").slice(0,220);}catch(e){};throw Error(err+(res.status===409?" / 다른 곳에서 갱신됐습니다. 새로고침 후 다시 실행하세요.":""));}
+ return res.json();
+}
+async function read(path){const v=await req(path,{method:"GET"});if(typeof v.content!=="string")throw Error("GitHub 파일 형식이 예상과 다릅니다: "+path);return {sha:v.sha,value:JSON.parse(bytesFromBase64(v.content))};}
+async function update(path,oldSha,value,summary){
+ const resp=await req(path,{method:"PUT",body:{message:"puzzle-of-z web: "+summary,content:toBase64(JSON.stringify(value,null,2)+"\n"),sha:oldSha,branch:BRANCH}});
+ if(!resp.content||!resp.commit)throw Error("GitHub 응답에 저장 확인 정보가 없습니다.");
+ const check=await read(path);
+ if(check.sha!==resp.content.sha)throw Error("저장 뒤 다른 변경을 감지했습니다. 새로고침해주세요.");
+ return check;
+}
+function active(){if(!config)return null;return config.routes.find(r=>r.route_id===route?.route_id);}
+function currentData(){
+ if(!targets||!route)return null;
+ const oldNumber=route.web_order_numbers[step-1];
+ const history=targets.value.recommendation_history.find(h=>h.route_id===route.route_id);
+ if(!history)throw Error("기존 추천 기록이 없습니다: "+route.route_id);
+ const entry=history.numbered_targets.find(e=>e.number===oldNumber);
+ if(!entry)throw Error("코스 번호가 일치하지 않습니다: "+oldNumber);
+ const target=targets.value.targets.find(t=>t.id===entry.target_id);
+ if(!target)throw Error("대상 ID를 찾을 수 없습니다: "+entry.target_id);
+ return {oldNumber,entry,target,history};
+}
+function status(d){
+ if(d.target.coordinate_status==="missing_at_last_known_location"||d.history.skipped_targets?.some(x=>x.number===d.oldNumber))return "실종";
+ if(d.target.excluded_from_raid_recommendations||d.target.coordinate_status==="excluded_active_player")return "활동 유저";
+ if(d.history.completed_targets?.some(x=>x.number===d.oldNumber&&!x.invalidated))return "공격 완료";
+ return "미진행";
+}
+function render(){
+ const d=currentData();if(!d)return;
+ $("stepNumber").textContent=String(step);$("stepTotal").textContent="/ "+route.web_order_numbers.length;
+ $("xVal").textContent=d.target.x;$("yVal").textContent=d.target.y;
+ $("oldNum").textContent="원래 "+d.oldNumber+"번";$("star").textContent="★"+(d.entry.star_tier??d.target.star_tier??0);
+ $("distance").textContent="거리 "+(d.target.distance??"—");
+ $("targetName").textContent=d.target.nickname?d.target.nickname+" · "+d.target.id:d.target.id;
+ $("targetStatus").textContent=status(d);
+ $("attacked").disabled=busy||status(d)!=="미진행";
+ $("missing").disabled=busy||status(d)==="실종"||status(d)==="활동 유저";
+ $("prev").disabled=busy||step<=1;$("next").disabled=busy||step>=route.web_order_numbers.length;
+ $("courseInfo").textContent="웹 순번 "+step+" / "+route.web_order_numbers.length+" · 원래 코스 "+d.oldNumber+"번 · 5개씩 역순 배치";
+ $("statusText").textContent="GitHub와 동기화됨 · NEXT는 공격이 아님";
+ $("go").disabled=busy;$("register").disabled=busy;$("reload").disabled=busy;
+}
+function setBusy(v){busy=v;const d=targets&&route?currentData():null;if(d)render();$("login").disabled=v;}
+function showApp(){ $("app").style.display="block";$("loginBox").style.display="none"; }
+async function loadAll(){
+ targets=await read(PATHS.targets);config=(await read(PATHS.config)).value;progress=await read(PATHS.progress);
+ const list=config.routes;
+ $("courseSelect").replaceChildren();
+ for(const c of list){const opt=document.createElement("option");opt.value=c.route_id;opt.textContent=c.label;$("courseSelect").append(opt);}
+ const saved=progress.value.active_route_id;
+ route=list.find(c=>c.route_id===saved)||list[0];$("courseSelect").value=route.route_id;
+ const entry=progress.value.courses?.[route.route_id];
+ step=Math.min(route.web_order_numbers.length,Math.max(1,Number(entry?.current_step)||1));
+ showApp();render();
+}
+async function connect(){
+ if(busy)return;
+ const input=$("token").value.trim();if(input)token=input;
+ if(!token){loginMessage("토큰을 입력해주세요.","error");return;}
+ setBusy(true);try{await loadAll();sessionStorage.setItem("pz_token",token);$("token").value="";message("GitHub 연결 완료. 기준 데이터와 코스를 불러왔습니다.","good");}catch(e){loginMessage("연결 실패: "+e.message,"error");}finally{setBusy(false);}
+}
+function forget(){sessionStorage.removeItem("pz_token");token="";$("token").value="";targets=null;config=null;progress=null;route=null;$("app").style.display="none";$("loginBox").style.display="block";loginMessage("세션 토큰을 삭제했습니다.","good");}
+async function saveStep(nextStep){
+ if(nextStep<1||nextStep>route.web_order_numbers.length)return;
+ const live=await read(PATHS.progress);
+ const p=live.value;
+ if(!p.courses)p.courses={};
+ p.courses[route.route_id]={current_step:nextStep,current_number:route.web_order_numbers[nextStep-1],updated_at_kst:kstNow()};
+ p.active_route_id=route.route_id;
+ const stored=await update(PATHS.progress,live.sha,p,"move route cursor "+nextStep);
+ if(stored.value.courses[route.route_id]?.current_step!==nextStep)throw Error("진행 번호 검증 실패");
+ progress=stored;step=nextStep;render();
+}
+async function move(n){
+ if(busy)return;setBusy(true);
+ try{await saveStep(n);message("현재 웹 순번 "+n+"번 저장 완료.","good");}
+ catch(e){message("진행 위치 저장 실패: "+e.message,"error");}
+ finally{setBusy(false);}
+}
+async function switchCourse(){
+ if(busy)return;const choice=config.routes.find(c=>c.route_id===$("courseSelect").value);
+ if(!choice)return;route=choice;
+ const p=progress.value.courses?.[choice.route_id];step=Math.min(choice.web_order_numbers.length,Math.max(1,Number(p?.current_step)||1));render();
+ try{await saveStep(step);}catch(e){message("코스 선택을 저장하지 못했습니다: "+e.message,"error");}
+}
+async function report(kind){
+ if(busy)return;
+ const old=currentData();
+ if(kind==="raid"&&!confirm("실제로 공격을 완료했나요?\nX "+old.target.x+" / Y "+old.target.y+"\n이 작업은 GitHub 공격 횟수를 1회 증가시킵니다."))return;
+ if(kind==="missing"&&!confirm("이 좌표가 실제로 사라졌나요?\nX "+old.target.x+" / Y "+old.target.y+"\nGitHub에 실종으로 기록합니다."))return;
+ setBusy(true);
+ try{
+  const live=await read(PATHS.targets), data=live.value;
+  const t=data.targets.find(x=>x.id===old.entry.target_id);
+  const h=data.recommendation_history.find(x=>x.route_id===route.route_id);
+  if(!t||!h)throw Error("대상 또는 추천 이력이 변경됐습니다.");
+  if(t.x!==old.target.x||t.y!==old.target.y)throw Error("농장 좌표가 변경됐습니다. 새로고침 후 확인하세요.");
+  const at=kstNow(),num=old.oldNumber;
+  if(kind==="raid"){
+   if(t.coordinate_status==="missing_at_last_known_location"||t.excluded_from_raid_recommendations||t.coordinate_status==="excluded_active_player")throw Error("실종 또는 활동 유저는 공격 완료할 수 없습니다.");
+   if(h.completed_targets?.some(x=>x.number===num&&!x.invalidated))throw Error("이 코스에서 이미 공격 완료된 대상입니다.");
+   const today=todayKST();
+   const daily=data.raid_history.filter(x=>x.target_id===t.id&&!x.invalidated&&(x.raid_date_kst===today||x.raided_at_kst?.slice(0,10)===today)).length;
+   if(daily>=2)throw Error("이 농장은 오늘 이미 2회 공격한 기록이 있습니다.");
+   data.raid_history.push({target_id:t.id,raided_at_kst:at,raid_date_kst:today,coordinate_raw:t.coordinate_raw,source:"user_confirmed_web",route_id:route.route_id,route_number:num,web_step:step,timestamp_basis:"web_confirmation_report_time_not_actual_attack_time"});
+   t.raid_count=(t.raid_count||0)+1;t.last_raided_at_kst=at;t.visit_status="completed";t.last_raid_timestamp_basis="web_confirmation_report_time_not_actual_attack_time";
+   if(!h.completed_targets)h.completed_targets=[];
+   h.completed_targets.push({number:num,target_id:t.id,confirmed_at_kst:at,timestamp_basis:"web_confirmation_report_time_not_actual_attack_time",web_step:step});
+  } else {
+   if(t.excluded_from_raid_recommendations||t.coordinate_status==="excluded_active_player")throw Error("활동 유저는 실종으로 바꾸지 않습니다.");
+   if(t.coordinate_status==="missing_at_last_known_location")throw Error("이미 실종 처리된 농장입니다.");
+   t.coordinate_status="missing_at_last_known_location";t.missing_reported_at_kst=at;t.last_missing_confirmed_at_kst=at;
+   t.notes=(t.notes||"")+"\n"+at+" 웹페이지로 사용자 실종 신고. 원래 코스 #"+num+", 웹 순번 #"+step+". 실제 공격 없음.";
+   const plan=data.scouting_progress.missing_target_rescan_plan;
+   if(!plan.missing_target_ids.includes(t.id))plan.missing_target_ids.push(t.id);
+   plan.missing_count=data.targets.filter(x=>x.coordinate_status==="missing_at_last_known_location").length;
+   if("current_missing_count" in plan)plan.current_missing_count=plan.missing_count;
+   plan.updated_at_kst=at;
+   if(!h.skipped_targets)h.skipped_targets=[];
+   if(!h.skipped_targets.some(x=>x.number===num))h.skipped_targets.push({number:num,target_id:t.id,coordinate_raw:t.coordinate_raw,reason:"missing_at_last_known_location",confirmed_at_kst:at,web_step:step,notes:"User confirmed missing via web; no new raid."});
+  }
+  h.last_progress_at_kst=at;
+  const v=await update(PATHS.targets,live.sha,data,kind+" "+t.id+" #"+num);
+  const updated=v.value.targets.find(x=>x.id===t.id);
+  if(kind==="raid"&&updated.raid_count!==t.raid_count)throw Error("저장 검증 중 공격 횟수 불일치");
+  if(kind==="missing"&&updated.coordinate_status!=="missing_at_last_known_location")throw Error("실종 상태 검증 실패");
+  targets=v;
+  const next=Math.min(step+1,route.web_order_numbers.length);
+  if(next>step){
+   try{await saveStep(next);message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 다음 웹 순번 "+next+"번.","good");}
+   catch(e){message("공격/실종 기록은 GitHub에 저장됐지만 진행 위치 저장은 실패했습니다. NEXT를 눌러주세요. "+e.message,"error");}
+  }else{render();message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 마지막 좌표입니다.","good");}
+ }catch(e){message("GitHub 기록 실패: "+e.message,"error");}
+ finally{setBusy(false);}
+}
+async function register(){
+ if(busy)return;
+ const x=Number($("newX").value),y=Number($("newY").value);
+ if(!$("newX").value||!$("newY").value||!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>1023||y>1023){message("X/Y 좌표를 0~1023 정수로 입력해주세요.","error");return;}
+ const nickname=$("newName").value.trim(),tier=Number($("newStar").value),dist=$("newDist").value.trim();
+ if(dist&&!Number.isFinite(Number(dist))){message("거리 값이 올바르지 않습니다.","error");return;}
+ const resources={food:$("newFood").value.trim()||null,iron:$("newIron").value.trim()||null,oil:$("newOil").value.trim()||null};
+ if(!confirm("신규 농장 등록을 진행할까요?\n("+x+", "+y+") ★"+tier+"\n기존 ID 및 중복 여부를 확인합니다."))return;
+ setBusy(true);
+ try{
+  const live=await read(PATHS.targets),data=live.value;
+  const exactNick=nickname?data.targets.filter(t=>t.nickname===nickname&&(t.server==="1056"||t.server==null)):[];
+  if(exactNick.length)throw Error("같은 닉네임의 기존 농장 "+exactNick.map(t=>t.id+" ("+t.x+","+t.y+")").join(", ")+"이 있습니다. 좌표 이동·중복 확인은 ChatGPT에서 처리해주세요.");
+  const near=data.targets.filter(t=>Math.abs(t.x-x)<=2&&Math.abs(t.y-y)<=2);
+  if(near.length)throw Error("기존 좌표 근처입니다: "+near.map(t=>t.id+" ("+t.x+","+t.y+")").join(", ")+". 중복을 확인한 뒤 등록해주세요.");
+  const allIds=[...data.targets.map(t=>t.id),...(data.retired_target_ids||[])];
+  const maxId=Math.max(...allIds.map(z=>Number(String(z).replace(/^PZ/,""))||0));
+  const id="PZ"+String(maxId+1).padStart(4,"0");
+  const now=kstNow();
+  const player=data.player_coordinate||{x:294,y:540};
+  const distance=dist?Number(dist):Math.ceil(Math.hypot(x-player.x,y-player.y));
+  const rec={id,coordinate_raw:"S:1056 X:"+x+" Y:"+y,x,y,server:"1056",distance,hq_level:null,resources,nickname:nickname||null,star_tier:tier,first_seen_at_kst:now,last_seen_at_kst:now,last_raided_at_kst:null,raid_count:0,notes:"웹에서 신규 등록. 거리 "+(dist?"사용자 입력":"지휘센터 직선거리 추정")+". 자원 미입력값은 null."};
+  data.targets.push(rec);
+  const verified=await update(PATHS.targets,live.sha,data,"register new "+id);
+  if(!verified.value.targets.some(t=>t.id===id&&t.x===x&&t.y===y))throw Error("신규 등록 검증 실패");
+  targets=verified;
+  for(const key of ["newX","newY","newDist","newName","newFood","newIron","newOil"])$(key).value="";
+  message(id+" ("+x+", "+y+") GitHub 등록 완료. 다음 코스 설계 때 반영됩니다.","good");
+ }catch(e){message("등록 실패: "+e.message,"error");}
+ finally{setBusy(false);}
+}
+$("login").onclick=connect;$("forget").onclick=forget;$("logout").onclick=forget;
+$("prev").onclick=()=>move(step-1);$("next").onclick=()=>move(step+1);
+$("attacked").onclick=()=>report("raid");$("missing").onclick=()=>report("missing");
+$("reload").onclick=async()=>{if(busy)return;setBusy(true);try{await loadAll();message("최신 GitHub 데이터로 동기화 완료.","good");}catch(e){message("새로고침 실패: "+e.message,"error");}finally{setBusy(false);}};
+$("courseSelect").onchange=switchCourse;
+$("go").onclick=()=>{const n=Number($("gotoNumber").value);if(!Number.isInteger(n))return message("올바른 웹 순번을 입력해주세요.","error");move(n);};
+$("register").onclick=register;
+if(token){$("token").value=token;connect();}
+})();
+</script>
+</body>
+</html>
