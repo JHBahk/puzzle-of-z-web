@@ -120,8 +120,8 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
   <div id="scoutList"></div>
  </section>
  <section class="panel" id="registerPanel" style="display:none">
-  <h2>새 농장 등록</h2>
-  <p class="help">등록한 좌표는 GitHub에 추가됩니다. 기존 코스에는 자동 삽입되지 않으며, 다음 코스 생성 시 반영됩니다. 같은 닉네임이거나 가까운 좌표가 있으면 중복 여부를 검토합니다.</p>
+  <h2>새 농장 등록 / 기존 농장 갱신</h2>
+  <p class="help">같은 서버에서 정확히 일치하는 닉네임이 하나라면 기존 ID의 좌표 이동으로 자동 갱신합니다. 가까운 좌표도 중복을 확인해 갱신하며, 다른 닉네임의 이웃 농장은 별개로 등록합니다. 신규 농장은 다음 코스 생성 시 반영됩니다.</p>
   <div class="row"><div><label for="newX">X</label><input id="newX" type="number" min="0" max="1023" inputmode="numeric"></div>
   <div><label for="newY">Y</label><input id="newY" type="number" min="0" max="1023" inputmode="numeric"></div></div>
   <div class="row" style="margin-top:8px"><div><label for="newStar">별 등급</label><select id="newStar"><option value="0">★0</option><option value="1">★1</option><option value="2">★2</option><option value="3">★3</option></select></div>
@@ -133,7 +133,7 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
    <div class="col"><label for="newOil">기름</label><input id="newOil" placeholder="예: 23.4K"></div>
    <p class="help">창고 자원과 나무는 제외. 미입력 수치는 추측하지 않습니다.</p>
   </details>
-  <button id="register" style="width:100%;margin-top:12px" class="secondary">GitHub에 등록</button>
+  <button id="register" style="width:100%;margin-top:12px" class="secondary">GitHub에 등록 / 갱신</button>
  </section>
  <div id="statusText"></div>
 </section>
@@ -383,34 +383,98 @@ async function report(kind){
 }
 async function register(){
  if(busy)return;
- const x=Number($("newX").value),y=Number($("newY").value);
- if(!$("newX").value||!$("newY").value||!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>1023||y>1023){message("X/Y 좌표를 0~1023 정수로 입력해주세요.","error");return;}
+ const xv=$("newX").value,yv=$("newY").value,x=Number(xv),y=Number(yv);
+ if(!xv||!yv||!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>1023||y>1023){message("X/Y 좌표를 0~1023 정수로 입력해주세요.","error");return;}
  const nickname=$("newName").value.trim(),tier=Number($("newStar").value),dist=$("newDist").value.trim();
- if(dist&&!Number.isFinite(Number(dist))){message("거리 값이 올바르지 않습니다.","error");return;}
- const resources={food:$("newFood").value.trim()||null,iron:$("newIron").value.trim()||null,oil:$("newOil").value.trim()||null};
- if(!confirm("신규 농장 등록을 진행할까요?\n("+x+", "+y+") ★"+tier+"\n기존 ID 및 중복 여부를 확인합니다."))return;
+ if(!Number.isInteger(tier)||tier<0||tier>3){message("별 등급을 선택해주세요.","error");return;}
+ if(dist&&(!Number.isFinite(Number(dist))||Number(dist)<0)){message("거리 값이 올바르지 않습니다.","error");return;}
+ const resourceInput={food:$("newFood").value.trim()||null,iron:$("newIron").value.trim()||null,oil:$("newOil").value.trim()||null};
+ if(!confirm("농장 좌표를 등록하거나 기존 농장을 갱신할까요?\n("+x+", "+y+") ★"+tier+(nickname?"\n"+nickname:"")+"\n기존 닉네임·좌표를 먼저 대조합니다."))return;
  setBusy(true);
  try{
   const live=await read(PATHS.targets),data=live.value;
-  const exactNick=nickname?data.targets.filter(t=>t.nickname===nickname&&(t.server==="1056"||t.server==null)):[];
-  if(exactNick.length)throw Error("같은 닉네임의 기존 농장 "+exactNick.map(t=>t.id+" ("+t.x+","+t.y+")").join(", ")+"이 있습니다. 좌표 이동·중복 확인은 ChatGPT에서 처리해주세요.");
-  const near=data.targets.filter(t=>Math.abs(t.x-x)<=2&&Math.abs(t.y-y)<=2);
-  if(near.length)throw Error("기존 좌표 근처입니다: "+near.map(t=>t.id+" ("+t.x+","+t.y+")").join(", ")+". 중복을 확인한 뒤 등록해주세요.");
-  const allIds=[...data.targets.map(t=>t.id),...(data.retired_target_ids||[])];
-  const maxId=Math.max(...allIds.map(z=>Number(String(z).replace(/^PZ/,""))||0));
-  const id="PZ"+String(maxId+1).padStart(4,"0");
+  const sameNick=nickname?data.targets.filter(t=>t.nickname===nickname&&(t.server==="1056"||t.server==null)):[];
+  if(sameNick.length>1)throw Error("정확히 같은 닉네임의 농장이 여러 개입니다: "+sameNick.map(t=>t.id+" ("+t.x+","+t.y+")").join(", ")+". 자동 병합하지 않고 확인이 필요합니다.");
+  const close=data.targets.filter(t=>Math.abs(t.x-x)<=2&&Math.abs(t.y-y)<=2&&t.server!=="other"&&(t.server==="1056"||t.server==null));
+  if(sameNick.length===1&&close.some(t=>t.id!==sameNick[0].id))throw Error("새 좌표 주변에 다른 농장이 있습니다: "+close.map(t=>t.id+" ("+t.x+","+t.y+")").join(", ")+". 기존 동일 닉네임 농장과 어느 쪽인지 확인이 필요합니다.");
+  let existing=sameNick[0]||null;
+  if(!existing){
+   const compatible=close.filter(t=>!nickname||!t.nickname||t.nickname===nickname);
+   if(compatible.length>1)throw Error("가까운 농장이 여러 개입니다: "+compatible.map(t=>t.id+" ("+t.x+","+t.y+")").join(", ")+". 중복 확인이 필요합니다.");
+   if(compatible.length===1)existing=compatible[0];
+   if(!existing&&close.some(t=>t.x===x&&t.y===y))throw Error("완전히 같은 좌표에 다른 닉네임 농장이 등록되어 있습니다. 확인이 필요합니다.");
+  }
   const now=kstNow();
   const player=data.player_coordinate||{x:294,y:540};
-  const distance=dist?Number(dist):Math.ceil(Math.hypot(x-player.x,y-player.y));
-  const rec={id,coordinate_raw:"S:1056 X:"+x+" Y:"+y,x,y,server:"1056",distance,hq_level:null,resources,nickname:nickname||null,star_tier:tier,first_seen_at_kst:now,last_seen_at_kst:now,last_raided_at_kst:null,raid_count:0,notes:"웹에서 신규 등록. 거리 "+(dist?"사용자 입력":"지휘센터 직선거리 추정")+". 자원 미입력값은 null."};
-  data.targets.push(rec);
-  const verified=await update(PATHS.targets,live.sha,data,"register new "+id);
-  if(!verified.value.targets.some(t=>t.id===id&&t.x===x&&t.y===y))throw Error("신규 등록 검증 실패");
+  const calculated=Math.ceil(Math.hypot(x-player.x,y-player.y));
+  let id,action;
+  if(existing){
+   if(existing.excluded_from_raid_recommendations===true||existing.coordinate_status==="excluded_active_player")
+    throw Error("활동 중인 유저로 제외된 "+existing.id+"입니다. 자동 재활성화하지 않습니다.");
+   const priorX=existing.x,priorY=existing.y,relocated=priorX!==x||priorY!==y;
+   const wasMissing=existing.coordinate_status==="missing_at_last_known_location";
+   if(relocated){
+    const oldPosition={
+     x:priorX,y:priorY,coordinate_raw:existing.coordinate_raw,server:existing.server,
+     distance:existing.distance,resources:existing.resources?{...existing.resources}:{food:null,iron:null,oil:null},
+     hq_level:existing.hq_level??null,last_seen_at_kst:existing.last_seen_at_kst||null,
+     status:existing.coordinate_status||null,
+     reported_missing_at_kst:existing.missing_reported_at_kst||null,
+     last_missing_confirmed_at_kst:existing.last_missing_confirmed_at_kst||null,
+     moved_at_kst:null,new_location_observed_at_kst:now,
+     source:"web_exact_unique_nickname_or_near_coordinate",
+     notes:"실제 이동 시각은 알 수 없으며 이전 자원량은 새 좌표의 자원량으로 사용하지 않습니다."
+    };
+    if(existing.missing_reconfirmed_at_kst)oldPosition.missing_reconfirmed_at_kst=existing.missing_reconfirmed_at_kst;
+    existing.coordinate_history=[...(existing.coordinate_history||[]),oldPosition];
+   }
+   existing.x=x;existing.y=y;existing.server="1056";
+   existing.coordinate_raw="S:1056 X:"+x+" Y:"+y;
+   if(dist){existing.distance=Number(dist);existing.distance_basis="user_observed_game_distance";}
+   else if(relocated||!Number.isFinite(existing.distance)){existing.distance=calculated;existing.distance_basis="estimated_straight_line_from_player_coordinate_after_move";}
+   if(nickname&&!existing.nickname)existing.nickname=nickname;
+   existing.star_tier=Math.max(existing.star_tier??0,starFromOil(existing.resources?.oil),tier);
+   if(relocated)existing.resources={food:null,iron:null,oil:null};
+   if(!existing.resources)existing.resources={food:null,iron:null,oil:null};
+   for(const key of ["food","iron","oil"])if(resourceInput[key]!==null)existing.resources[key]=resourceInput[key];
+   existing.star_tier=Math.max(existing.star_tier,tier,starFromOil(existing.resources?.oil));
+   existing.last_seen_at_kst=now;
+   if(relocated)existing.coordinate_status="relocated_confirmed";
+   else if(wasMissing)existing.coordinate_status="confirmed_at_original_location";
+   if(wasMissing){
+    for(const key of ["missing_reported_at_kst","last_missing_confirmed_at_kst","missing_reconfirmed_at_kst"])delete existing[key];
+    const plan=data.scouting_progress?.missing_target_rescan_plan;
+    if(plan){
+     plan.missing_target_ids=(plan.missing_target_ids||[]).filter(id=>id!==existing.id);
+     plan.missing_count=plan.missing_target_ids.length;
+     plan.current_missing_count=plan.missing_target_ids.length;
+     plan.updated_at_kst=now;
+     plan.notes=(plan.notes||"")+"\n"+now+": "+existing.id+" 닉네임·좌표로 재발견, 현재 실종 해제. 과거 실종 기록 보존.";
+    }
+   }
+   existing.notes=(existing.notes||"")+"\n"+now+": 웹 좌표 "+(relocated?"이동 확인":"갱신")+" ("+priorX+","+priorY+") → ("+x+","+y+") ★"+tier+(dist?" 거리 "+dist:"")+". 과거 공격 이력 보존. 신규 공격 기록 없음.";
+   id=existing.id;action=relocated?"이동 갱신":"정보 갱신";
+  }else{
+   const allIds=[...data.targets.map(t=>t.id),...(data.retired_target_ids||[])];
+   const maxId=Math.max(0,...allIds.map(z=>Number(String(z).replace(/^PZ/,""))||0));
+   id="PZ"+String(maxId+1).padStart(4,"0");
+   const rec={id,coordinate_raw:"S:1056 X:"+x+" Y:"+y,x,y,server:"1056",
+    distance:dist?Number(dist):calculated,
+    distance_basis:dist?"user_observed_game_distance":"estimated_straight_line_from_player_coordinate",
+    hq_level:null,resources:resourceInput,nickname:nickname||null,
+    star_tier:Math.max(tier,starFromOil(resourceInput.oil)),
+    first_seen_at_kst:now,last_seen_at_kst:now,last_raided_at_kst:null,raid_count:0,
+    notes:"웹에서 신규 등록. 거리 "+(dist?"사용자 입력":"지휘센터 직선거리 추정")+". 자원 미입력값은 null."};
+   data.targets.push(rec);action="신규 등록";
+  }
+  const verified=await update(PATHS.targets,live.sha,data,"web "+action+" "+id);
+  const check=verified.value.targets.find(t=>t.id===id&&t.x===x&&t.y===y);
+  if(!check)throw Error("등록/갱신 검증 실패");
   targets=verified;
   for(const key of ["newX","newY","newDist","newName","newFood","newIron","newOil"])$(key).value="";
-  renderScout();
-  message(id+" ("+x+", "+y+") GitHub 등록 완료. 수색 목록에도 즉시 반영됐습니다.","good");
- }catch(e){message("등록 실패: "+e.message,"error");}
+  renderScout();render();
+  message(id+" ("+x+", "+y+") "+action+" 완료. GitHub 저장 확인했으며 수색 목록에도 반영됐습니다.","good");
+ }catch(e){message("등록/갱신 실패: "+e.message,"error");}
  finally{setBusy(false);}
 }
 $("login").onclick=connect;$("forget").onclick=forget;$("logout").onclick=forget;
