@@ -104,7 +104,7 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
    <button class="secondary" id="prev">이전</button>
    <button id="next">NEXT</button>
   </div>
-  <p class="help">NEXT와 이전은 진행 위치만 저장하며, 공격으로 기록하지 않습니다. 공격 완료·실종은 GitHub에 저장 후 다음 좌표로 이동합니다.</p>
+  <p class="help">NEXT와 이전은 진행 위치만 저장하고 공격으로 기록하지 않습니다. 실종으로 보고하면 해당 좌표는 즉시 목록에서 제외되고 순번이 자동 정리됩니다. 공격 완료·실종은 GitHub 저장 후 다음 좌표로 이동합니다.</p>
   <details><summary>원하는 웹 순번으로 이동</summary>
    <div class="row"><input id="gotoNumber" type="number" min="1" inputmode="numeric" placeholder="웹 순번"><button id="go">이동</button></div>
   </details>
@@ -191,6 +191,33 @@ function currentData(atStep=step){
  if(!target)throw Error("대상 ID를 찾을 수 없습니다: "+entry.target_id);
  return {oldNumber,entry,target,history};
 }
+function availableWebSteps(){
+ if(!targets||!route)return [];
+ const h=targets.value.recommendation_history.find(item=>item.route_id===route.route_id);
+ if(!h)return [];
+ const skipped=new Set((h.skipped_targets||[]).filter(s=>!s.invalidated).map(s=>s.number));
+ const byNumber=new Map(h.numbered_targets.map(item=>[item.number,item.target_id]));
+ const byId=new Map(targets.value.targets.map(t=>[t.id,t]));
+ return route.web_order_numbers.map((n,i)=>({number:n,rawStep:i+1})).filter(item=>{
+  const t=byId.get(byNumber.get(item.number));
+  return t&&t.coordinate_status!=="missing_at_last_known_location"&&t.coordinate_status!=="excluded_active_player"&&!t.excluded_from_raid_recommendations&&!skipped.has(item.number);
+ }).map(item=>item.rawStep);
+}
+function nearestVisibleStep(rawStep){
+ const valid=availableWebSteps();
+ return valid.find(n=>n>=rawStep)||valid[valid.length-1]||1;
+}
+function nextVisibleStep(rawStep){
+ return availableWebSteps().find(n=>n>rawStep)||null;
+}
+function prevVisibleStep(rawStep){
+ const before=availableWebSteps().filter(n=>n<rawStep);
+ return before.length?before[before.length-1]:null;
+}
+function displayedStep(rawStep){
+ const position=availableWebSteps().indexOf(rawStep);
+ return position===-1?null:position+1;
+}
 function status(d){
  if(d.target.coordinate_status==="missing_at_last_known_location"||d.history.skipped_targets?.some(x=>x.number===d.oldNumber))return "실종";
  if(d.target.excluded_from_raid_recommendations||d.target.coordinate_status==="excluded_active_player")return "활동 유저";
@@ -198,20 +225,32 @@ function status(d){
  return "미진행";
 }
 function render(){
+ const valid=availableWebSteps();
+ if(!valid.length){
+  $("stepNumber").textContent="—";$("stepTotal").textContent="/ 0";
+  $("xVal").textContent="—";$("yVal").textContent="—";
+  $("targetStatus").textContent="코스 완료";$("nextPreviewLabel").textContent="다음 좌표";$("nextPreviewCoords").textContent="없음";
+  $("attacked").disabled=true;$("missing").disabled=true;$("prev").disabled=true;$("next").disabled=true;
+  $("courseInfo").textContent="이 코스에 남은 대상이 없습니다.";
+  return;
+ }
+ if(!valid.includes(step))step=nearestVisibleStep(step);
  const d=currentData();if(!d)return;
- $("stepNumber").textContent=String(step);$("stepTotal").textContent="/ "+route.web_order_numbers.length;
+ const shown=valid.indexOf(step)+1;
+ $("stepNumber").textContent=String(shown);$("stepTotal").textContent="/ "+valid.length;
  $("xVal").textContent=d.target.x;$("yVal").textContent=d.target.y;
- $("star").textContent="★"+(d.entry.star_tier??d.target.star_tier??0);
+ $("star").textContent="★"+(d.target.star_tier??d.entry.star_tier??0);
  $("distance").textContent="거리 "+(d.target.distance??"—");
  $("targetName").textContent=d.target.nickname?d.target.nickname+" · "+d.target.id:d.target.id;
- const upcoming=currentData(step+1);
- $("nextPreviewLabel").textContent=upcoming?"다음 "+(step+1)+"번":"마지막 좌표";
+ const nextRaw=valid[shown]??null;
+ const upcoming=nextRaw?currentData(nextRaw):null;
+ $("nextPreviewLabel").textContent=upcoming?"다음 "+(shown+1)+"번":"마지막 좌표";
  $("nextPreviewCoords").textContent=upcoming?"X "+upcoming.target.x+" · Y "+upcoming.target.y:"다음 좌표 없음";
  $("targetStatus").textContent=status(d);
  $("attacked").disabled=busy||status(d)!=="미진행";
  $("missing").disabled=busy||status(d)==="실종"||status(d)==="활동 유저";
- $("prev").disabled=busy||step<=1;$("next").disabled=busy||step>=route.web_order_numbers.length;
- $("courseInfo").textContent="웹 순번 "+step+" / "+route.web_order_numbers.length+" · NEXT는 표시 순서대로 이동";
+ $("prev").disabled=busy||shown<=1;$("next").disabled=busy||shown>=valid.length;
+ $("courseInfo").textContent="웹 순번 "+shown+" / "+valid.length+" · 실종·활동 유저는 자동 제외";
  $("statusText").textContent="GitHub와 동기화됨 · NEXT는 공격이 아님";
  $("go").disabled=busy;$("register").disabled=busy;$("reload").disabled=busy;
 }
@@ -309,6 +348,7 @@ async function loadAll(){
  route=list.find(c=>c.route_id===saved)||list[0];$("courseSelect").value=route.route_id;
  const entry=progress.value.courses?.[route.route_id];
  step=Math.min(route.web_order_numbers.length,Math.max(1,Number(entry?.current_step)||1));
+ step=nearestVisibleStep(step);
  showApp();render();initScoutBand();renderScout();setTab(viewMode);
 }
 async function connect(){
@@ -331,14 +371,14 @@ async function saveStep(nextStep){
 }
 async function move(n){
  if(busy)return;setBusy(true);
- try{await saveStep(n);message("현재 웹 순번 "+n+"번 저장 완료.","good");}
+ try{await saveStep(n);message("현재 웹 순번 "+(displayedStep(n)??n)+"번 저장 완료.","good");}
  catch(e){message("진행 위치 저장 실패: "+e.message,"error");}
  finally{setBusy(false);}
 }
 async function switchCourse(){
  if(busy)return;const choice=config.routes.find(c=>c.route_id===$("courseSelect").value);
  if(!choice)return;route=choice;
- const p=progress.value.courses?.[choice.route_id];step=Math.min(choice.web_order_numbers.length,Math.max(1,Number(p?.current_step)||1));render();
+ const p=progress.value.courses?.[choice.route_id];step=Math.min(choice.web_order_numbers.length,Math.max(1,Number(p?.current_step)||1));step=nearestVisibleStep(step);render();
  try{await saveStep(step);}catch(e){message("코스 선택을 저장하지 못했습니다: "+e.message,"error");}
 }
 async function report(kind){
@@ -383,11 +423,17 @@ async function report(kind){
   if(kind==="raid"&&updated.raid_count!==t.raid_count)throw Error("저장 검증 중 공격 횟수 불일치");
   if(kind==="missing"&&updated.coordinate_status!=="missing_at_last_known_location")throw Error("실종 상태 검증 실패");
   targets=v;
-  const next=Math.min(step+1,route.web_order_numbers.length);
-  if(next>step){
-   try{await saveStep(next);message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 다음 웹 순번 "+next+"번.","good");}
+  const next=nextVisibleStep(step);
+  if(next!==null){
+   try{await saveStep(next);message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 다음 웹 순번 "+displayedStep(next)+"번.","good");}
    catch(e){message("공격/실종 기록은 GitHub에 저장됐지만 진행 위치 저장은 실패했습니다. NEXT를 눌러주세요. "+e.message,"error");}
-  }else{render();message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 마지막 좌표입니다.","good");}
+  }else{
+   if(kind==="missing"){
+    const last=availableWebSteps().at(-1);
+    if(last!==undefined){try{await saveStep(last);}catch(e){message("실종 기록은 저장됐으나 마지막 위치 저장 실패: "+e.message,"error");}}
+   }
+   render();message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 마지막 좌표입니다.","good");
+  }
  }catch(e){message("GitHub 기록 실패: "+e.message,"error");}
  finally{setBusy(false);}
 }
@@ -492,11 +538,12 @@ $("tabRaid").onclick=()=>setTab("raid");$("tabScout").onclick=()=>setTab("scout"
 $("scoutShowMissing").onchange=renderScout;
 $("scoutRefresh").onclick=async()=>{if(busy)return;setBusy(true);try{targets=await read(PATHS.targets);initScoutBand();renderScout();message("수색 목록을 GitHub 최신 데이터로 갱신했습니다.","good");}catch(e){message("수색 목록 갱신 실패: "+e.message,"error");}finally{setBusy(false);}};
 $("newFromScout").onclick=()=>{$("registerPanel").scrollIntoView({behavior:"smooth",block:"start"});$("newX").focus({preventScroll:true});};
-$("prev").onclick=()=>move(step-1);$("next").onclick=()=>move(step+1);
+$("prev").onclick=()=>{const prev=prevVisibleStep(step);if(prev!==null)move(prev);};
+$("next").onclick=()=>{const next=nextVisibleStep(step);if(next!==null)move(next);};
 $("attacked").onclick=()=>report("raid");$("missing").onclick=()=>report("missing");
 $("reload").onclick=async()=>{if(busy)return;setBusy(true);try{await loadAll();message("최신 GitHub 데이터로 동기화 완료.","good");}catch(e){message("새로고침 실패: "+e.message,"error");}finally{setBusy(false);}};
 $("courseSelect").onchange=switchCourse;
-$("go").onclick=()=>{const n=Number($("gotoNumber").value);if(!Number.isInteger(n))return message("올바른 웹 순번을 입력해주세요.","error");move(n);};
+$("go").onclick=()=>{const n=Number($("gotoNumber").value),valid=availableWebSteps();if(!Number.isInteger(n)||n<1||n>valid.length)return message("올바른 웹 순번(1~"+valid.length+")을 입력해주세요.","error");move(valid[n-1]);};
 $("register").onclick=register;
 if(token){$("token").value=token;connect();}
 })();
