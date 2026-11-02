@@ -384,7 +384,7 @@ async function switchCourse(){
 async function report(kind){
  if(busy)return;
  const old=currentData();
- if(kind==="raid"&&!confirm("실제로 공격을 완료했나요?\nX "+old.target.x+" / Y "+old.target.y+"\n이 작업은 GitHub 공격 횟수를 1회 증가시킵니다."))return;
+ // 공격 완료 버튼 한 번으로 GitHub에 즉시 저장; busy 상태 및 기존 이력 검사로 중복 처리 방지.
  if(kind==="missing"&&!confirm("이 좌표가 실제로 사라졌나요?\nX "+old.target.x+" / Y "+old.target.y+"\nGitHub에 실종으로 기록합니다."))return;
  setBusy(true);
  try{
