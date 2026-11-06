@@ -107,14 +107,14 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
    <span id="nextPreviewCoords" class="next-preview-coords">—</span>
   </div>
   <div class="row" style="margin:15px 0">
-   <button class="green" id="attacked">공격 완료</button>
+   <button class="green" id="attacked">공격 → 다음 좌표</button>
    <button class="danger" id="missing">실종</button>
   </div>
   <div class="row">
    <button class="secondary" id="prev">이전</button>
    <button id="next">NEXT</button>
   </div>
-  <p class="help">NEXT와 이전은 진행 위치만 저장하고 공격으로 기록하지 않습니다. 실종으로 보고하면 해당 좌표는 즉시 목록에서 제외되고 순번이 자동 정리됩니다. 공격 완료·실종은 GitHub 저장 후 다음 좌표로 이동합니다.</p>
+  <p class="help">공격 → 다음 좌표와 NEXT는 진행 순번만 바꾸며 공격 이력·횟수를 기록하지 않습니다. 실종 신고는 GitHub에 실종 상태만 저장하고 해당 농장을 목록에서 제외합니다.</p>
   <details><summary>원하는 웹 순번으로 이동</summary>
    <div class="row"><input id="gotoNumber" type="number" min="1" inputmode="numeric" placeholder="웹 순번"><button id="go">이동</button></div>
   </details>
@@ -243,7 +243,7 @@ function render(){
  $("nextPreviewLabel").textContent=upcoming?"다음 "+(shown+1)+"번":"마지막 좌표";
  $("nextPreviewCoords").textContent=upcoming?"X "+upcoming.target.x+" · Y "+upcoming.target.y:"다음 좌표 없음";
  $("targetStatus").textContent=status(d);
- $("attacked").disabled=busy||status(d)!=="미진행";
+ $("attacked").disabled=busy;
  $("missing").disabled=busy||status(d)==="실종"||status(d)==="활동 유저";
  $("prev").disabled=busy||shown<=1;$("next").disabled=busy||shown>=valid.length;
  $("courseInfo").textContent="웹 순번 "+shown+" / "+valid.length+" · 실종·활동 유저는 자동 제외";
@@ -440,58 +440,53 @@ async function switchCourse(){
 }
 async function report(kind){
  if(busy)return;
+ if(kind==="raid"){
+  const next=nextVisibleStep(step);
+  if(next!==null)await move(next);
+  else message("코스 마지막 좌표입니다. 같은 코스를 다시 돌 때는 웹 순번 1번으로 이동하세요.");
+  return;
+ }
+ if(kind!=="missing")return;
  const old=currentData();
- // 공격 완료 버튼 한 번으로 GitHub에 즉시 저장; busy 상태 및 기존 이력 검사로 중복 처리 방지.
- if(kind==="missing"&&!confirm("이 좌표가 실제로 사라졌나요?\nX "+old.target.x+" / Y "+old.target.y+"\nGitHub에 실종으로 기록합니다."))return;
+ if(!old)return;
+ if(!confirm("이 좌표가 실제로 사라졌나요?\nX "+old.target.x+" / Y "+old.target.y+"\nGitHub에 실종 상태만 저장하고 공격 이력은 생성하지 않습니다."))return;
  setBusy(true);
  try{
-  const live=await read(PATHS.targets), data=live.value;
+  const live=await read(PATHS.targets),data=live.value;
   const t=data.targets.find(x=>x.id===old.entry.target_id);
   const h=data.recommendation_history.find(x=>x.route_id===route.route_id);
   if(!t||!h)throw Error("대상 또는 추천 이력이 변경됐습니다.");
   if(t.x!==old.target.x||t.y!==old.target.y)throw Error("농장 좌표가 변경됐습니다. 새로고침 후 확인하세요.");
-  const at=kstNow(),num=old.oldNumber;
-  if(kind==="raid"){
-   if(t.coordinate_status==="missing_at_last_known_location"||t.excluded_from_raid_recommendations||t.coordinate_status==="excluded_active_player")throw Error("실종 또는 활동 유저는 공격 완료할 수 없습니다.");
-   if(h.completed_targets?.some(x=>x.number===num&&!x.invalidated))throw Error("이 코스에서 이미 공격 완료된 대상입니다.");
-   const today=todayKST();
-   const daily=data.raid_history.filter(x=>x.target_id===t.id&&!x.invalidated&&(x.raid_date_kst===today||x.raided_at_kst?.slice(0,10)===today)).length;
-   if(daily>=2)throw Error("이 농장은 오늘 이미 2회 공격한 기록이 있습니다.");
-   data.raid_history.push({target_id:t.id,raided_at_kst:at,raid_date_kst:today,coordinate_raw:t.coordinate_raw,source:"user_confirmed_web",route_id:route.route_id,route_number:num,web_step:step,timestamp_basis:"web_confirmation_report_time_not_actual_attack_time"});
-   t.raid_count=(t.raid_count||0)+1;t.last_raided_at_kst=at;t.visit_status="completed";t.last_raid_timestamp_basis="web_confirmation_report_time_not_actual_attack_time";
-   if(!h.completed_targets)h.completed_targets=[];
-   h.completed_targets.push({number:num,target_id:t.id,confirmed_at_kst:at,timestamp_basis:"web_confirmation_report_time_not_actual_attack_time",web_step:step});
-  } else {
-   if(t.excluded_from_raid_recommendations||t.coordinate_status==="excluded_active_player")throw Error("활동 유저는 실종으로 바꾸지 않습니다.");
-   if(t.coordinate_status==="missing_at_last_known_location")throw Error("이미 실종 처리된 농장입니다.");
+  if(t.excluded_from_raid_recommendations||t.coordinate_status==="excluded_active_player")throw Error("활동 유저는 실종으로 처리하지 않습니다.");
+  if(t.coordinate_status!=="missing_at_last_known_location"){
+   const at=kstNow(),num=old.oldNumber;
    t.coordinate_status="missing_at_last_known_location";t.missing_reported_at_kst=at;t.last_missing_confirmed_at_kst=at;
-   t.notes=(t.notes||"")+"\n"+at+" 웹페이지로 사용자 실종 신고. 원래 코스 #"+num+", 웹 순번 #"+step+". 실제 공격 없음.";
-   const plan=data.scouting_progress.missing_target_rescan_plan;
-   if(!plan.missing_target_ids.includes(t.id))plan.missing_target_ids.push(t.id);
-   plan.missing_count=data.targets.filter(x=>x.coordinate_status==="missing_at_last_known_location").length;
-   if("current_missing_count" in plan)plan.current_missing_count=plan.missing_count;
-   plan.updated_at_kst=at;
+   t.notes=(t.notes||"")+"\n"+at+": 웹 출정 화면 사용자 실종 신고. 코스 #"+num+", 웹 순번 #"+step+". 공격 기록 없음.";
+   const plan=data.scouting_progress?.missing_target_rescan_plan;
+   if(plan){
+    plan.missing_target_ids=[...new Set([...(plan.missing_target_ids||[]),t.id])];
+    plan.missing_count=data.targets.filter(x=>x.coordinate_status==="missing_at_last_known_location").length;
+    if("current_missing_count" in plan)plan.current_missing_count=plan.missing_count;
+    plan.updated_at_kst=at;
+   }
    if(!h.skipped_targets)h.skipped_targets=[];
-   if(!h.skipped_targets.some(x=>x.number===num))h.skipped_targets.push({number:num,target_id:t.id,coordinate_raw:t.coordinate_raw,reason:"missing_at_last_known_location",confirmed_at_kst:at,web_step:step,notes:"User confirmed missing via web; no new raid."});
-  }
-  h.last_progress_at_kst=at;
-  const v=await update(PATHS.targets,live.sha,data,kind+" "+t.id+" #"+num);
-  const updated=v.value.targets.find(x=>x.id===t.id);
-  if(kind==="raid"&&updated.raid_count!==t.raid_count)throw Error("저장 검증 중 공격 횟수 불일치");
-  if(kind==="missing"&&updated.coordinate_status!=="missing_at_last_known_location")throw Error("실종 상태 검증 실패");
-  targets=v;
+   if(!h.skipped_targets.some(x=>x.number===num))h.skipped_targets.push({number:num,target_id:t.id,coordinate_raw:t.coordinate_raw,reason:"missing_at_last_known_location",confirmed_at_kst:at,web_step:step});
+   h.last_progress_at_kst=at;
+   const saved=await update(PATHS.targets,live.sha,data,"missing "+t.id+" #"+num);
+   if(saved.value.targets.find(z=>z.id===t.id)?.coordinate_status!=="missing_at_last_known_location")throw Error("실종 저장 재조회 검증 실패");
+   targets=saved;
+  }else targets=live;
   const next=nextVisibleStep(step);
   if(next!==null){
-   try{await saveStep(next);message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 다음 웹 순번 "+displayedStep(next)+"번.","good");}
-   catch(e){message("공격/실종 기록은 GitHub에 저장됐지만 진행 위치 저장은 실패했습니다. NEXT를 눌러주세요. "+e.message,"error");}
+   try{await saveStep(next);message("실종 상태 저장 완료. 다음 웹 순번 "+displayedStep(next)+"번.","good");}
+   catch(e){message("실종 기록은 저장됐지만 위치 동기화에 실패했습니다. NEXT를 눌러주세요. "+e.message,"error");}
   }else{
-   if(kind==="missing"){
-    const last=availableWebSteps().at(-1);
-    if(last!==undefined){try{await saveStep(last);}catch(e){message("실종 기록은 저장됐으나 마지막 위치 저장 실패: "+e.message,"error");}}
-   }
-   render();message((kind==="raid"?"공격":"실종")+" 기록 저장 완료. 마지막 좌표입니다.","good");
+   const last=availableWebSteps().at(-1);
+   if(last!==undefined){try{await saveStep(last);}catch(e){message("실종 저장 후 진행 위치 동기화 실패: "+e.message,"error");}}
+   render();message("실종 상태 GitHub 저장 완료.","good");
   }
- }catch(e){message("GitHub 기록 실패: "+e.message,"error");}
+  renderScout();
+ }catch(e){message("실종 신고 실패: "+e.message,"error");}
  finally{setBusy(false);}
 }
 $("login").onclick=connect;$("forget").onclick=forget;$("logout").onclick=forget;
