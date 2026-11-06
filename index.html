@@ -41,23 +41,25 @@ fieldset{border:0;margin:0;padding:0} fieldset:disabled{opacity:.4}
 .scout-band-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:8px}
 .scout-band-grid button{font-size:18px;padding:8px 2px;background:#e9eef6;color:#223852}
 .scout-band-grid button.active{background:#2358b8;color:#fff}
-.scout-section{margin:16px 0 20px}.scout-section h3{margin:0 0 7px;font-size:17px;padding:9px 0;border-bottom:1px solid var(--line)}
+.scout-section{margin:8px 0 10px}
+.scout-section h3{margin:0 0 2px;font-size:14px;line-height:1.3;padding:4px 0;border-bottom:1px solid var(--line)}
 .scout-list{list-style:none;padding:0;margin:0}
-.scout-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #ecf0f4;padding:10px 2px;font-variant-numeric:tabular-nums}
+.scout-list li{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:44px;border-bottom:1px solid #ecf0f4;padding:3px 2px;font-variant-numeric:tabular-nums}
 .scout-list li:last-child{border-bottom:0}
-.scout-list li.is-bust{background:#fff0f1;border-left:4px solid #ac3244;padding-left:8px}
+.scout-list li.is-bust{background:#fff0f1;border-left:4px solid #ac3244;padding-left:5px}
 .scout-list li.is-bust .scout-coord,.scout-list li.is-bust .scout-detail{color:#a42f3c}
 .scout-list li.is-missing{opacity:.72;background:#f5f6f7}
-.scout-action{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
-.scout-action button{min-height:34px;padding:6px 9px;font-size:12px}
-.scout-legend{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0;font-size:12px}
+.scout-coord{flex:1;min-width:0;font-size:15px;font-weight:650;letter-spacing:-.35px;white-space:nowrap}
+.scout-action{display:flex;flex:0 0 auto;flex-direction:row;align-items:center;gap:6px}
+.scout-detail{flex:0 0 63px;width:63px;font-size:12px;line-height:1.2;color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.scout-action button{flex:0 0 76px;width:76px;min-height:38px;padding:5px 6px;border-radius:8px;font-size:12px;line-height:1.25;white-space:nowrap}
+.scout-legend{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0;font-size:12px}
 .scout-legend span{padding:4px 8px;border-radius:7px;background:#edf1f7;color:#44566e}
 .scout-legend .is-bust{background:#fff0f1;color:#a42f3c}
 #scoutSaving{font-size:12px;line-height:1.5;white-space:pre-wrap}
-
-.scout-coord{font-size:16px;font-weight:650}
-.scout-detail{font-size:12px;color:var(--muted);text-align:right;overflow-wrap:anywhere}
-.scout-subtle{color:var(--muted);font-size:13px;padding:10px 0}
+.scout-subtle{color:var(--muted);font-size:12px;padding:3px 0}
+@media(max-width:380px){.scout-coord{font-size:14px}.scout-action{gap:4px}.scout-detail{flex-basis:56px;width:56px;font-size:11px}.scout-action button{flex-basis:72px;width:72px;padding:5px 4px}}
+@media(max-width:330px){.scout-coord{font-size:13px}.scout-detail{flex-basis:46px;width:46px}.scout-action button{flex-basis:68px;width:68px;font-size:11px}}
 @media(max-width:360px){.coordinate-grid b{font-size:35px}button{font-size:14px;padding:11px 6px}}
 </style>
 </head>
@@ -374,13 +376,13 @@ function renderScout(){
   const group=acceptable.filter(t=>t.y>=bottom&&t.y<=top).sort((a,b)=>a.x-b.x||a.y-b.y||a.id.localeCompare(b.id));
   const section=document.createElement("section");section.className="scout-section";
   const heading=document.createElement("h3");heading.textContent="Y "+bottom+"~"+top+" ("+group.length+"곳)";section.appendChild(heading);
-  if(!group.length){const p=document.createElement("p");p.className="scout-subtle";p.textContent="등록된 정상 농장 없음";section.appendChild(p);}
+  if(!group.length){heading.textContent+=" · 없음";}
   else{
    const list=document.createElement("ul");list.className="scout-list";
    for(const t of group){
     ordinal++;
     const item=document.createElement("li");item.className=(isBust(t)?"is-bust ":"")+(t.coordinate_status==="missing_at_last_known_location"?"is-missing":"");
-    const coords=document.createElement("span");coords.className="scout-coord";coords.textContent=ordinal+". ("+t.x+", "+t.y+")";
+    const coords=document.createElement("span");coords.className="scout-coord";coords.textContent=ordinal+". ("+t.x+","+t.y+")";
     const side=document.createElement("div");side.className="scout-action";
     const status=document.createElement("span");status.className="scout-detail";
     status.textContent=scoutTierText(t)+(t.coordinate_status==="missing_at_last_known_location"?" · 실종":"");
