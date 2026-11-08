@@ -1,7 +1,8 @@
 "use strict";
 const $=id=>document.getElementById(id);
-const state={data:null,selected:1,filter:"all",search:"",view:null,baseView:null,drag:null,admin:document.body.dataset.admin==="1",isLocal:false};
-const LOCAL_KEY="bam_alliance_local_v2";
+const state={data:null,selected:1,filter:"all",search:"",view:null,baseView:null,drag:null,admin:document.body.dataset.admin==="1",token:"",githubSha:null,connected:false,busy:false};
+const TOKEN_KEY="bam_alliance_git_pat_v1";
+const GH_URL="https://api.github.com/repos/JHBahk/puzzle-of-z-web/contents/alliance/data.json";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const polygon=pts=>pts.map(([x,y])=>x+","+y).join(" ");
 const X=x=>x*30,Y=y=>y*17;
@@ -51,31 +52,68 @@ const slots=state.data.slots,occupied=slots.filter(s=>s.nickname?.trim()).length
 $("countTotal").textContent=slots.length;
 $("countRegistered").textContent=occupied;
 $("countVacant").textContent=slots.length-occupied;
-$("modeStatus").textContent=state.admin?"이 기기 편집":(state.isLocal?"이 기기 수정":"공개 조회");
-$("updated").textContent=state.isLocal?"브라우저에 저장된 수정본":(state.admin?"기본 공개 데이터":"GitHub 공개 데이터");
+$("modeStatus").textContent=state.admin?(state.connected?"GitHub 연결됨":"연결 필요"):"공개 조회";
+$("updated").textContent=state.githubSha?"GitHub 최신 데이터":"공개 배치도";
+if(state.admin)renderAuth();
 mapRender();listRender();setSelect(state.selected);
 }
 const kstNow=()=>new Date(Date.now()+9*3600000).toISOString().slice(0,19)+"+09:00";
-function saveLocal(data){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(data));state.isLocal=true;return true;}catch(e){show("기기 저장에 실패했습니다. JSON 파일로 내보내기를 이용해 주세요.",true);return false;}}
-function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||"null");return d&&Array.isArray(d.slots)&&d.slots.length===100?d:null;}catch{return null;}}
-function clearLocal(){try{localStorage.removeItem(LOCAL_KEY);state.isLocal=false;}catch(e){show("브라우저 저장 데이터를 삭제하지 못했습니다.",true);}}
+function loadToken(){try{return localStorage.getItem(TOKEN_KEY)||"";}catch{return "";}}
+function saveToken(t){try{localStorage.setItem(TOKEN_KEY,t);return true;}catch{return false;}}
+function removeToken(){try{localStorage.removeItem(TOKEN_KEY);}catch{}}
+function renderAuth(){
+ if(!state.admin)return;
+ const c=state.connected;
+ $("authChip").textContent=c?"연결됨":"연결 필요";
+ $("authChip").classList.toggle("connected",c);
+ $("authStatus").textContent=c?"이 기기는 GitHub 저장소에 연결됐습니다. 좌표 수정 시 모든 연맹원에게 공유됩니다.":(state.token?"저장된 토큰을 확인할 수 없습니다. 토큰을 다시 연결해 주세요.":"최초 한 번만 이 웹 저장소 전용 GitHub 토큰을 등록하세요.");
+ $("tokenForm").hidden=c;
+ $("tokenDisconnect").hidden=!state.token;
+}
+function decodeGitHubBase64(b64){const b=atob(String(b64||"").replace(/\s+/g,""));return new TextDecoder().decode(Uint8Array.from(b,ch=>ch.charCodeAt(0)));}
+function encodeGitHubBase64(text){const bytes=new TextEncoder().encode(text);let out="";const chunkSize=4096;for(let i=0;i<bytes.length;i+=chunkSize)out+=String.fromCharCode(...bytes.subarray(i,i+chunkSize));return btoa(out);}
+async function githubRead(token=""){
+ const headers={"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"};
+ if(token)headers["Authorization"]="Bearer "+token;
+ const response=await fetch(GH_URL+"?ref=main&_="+Date.now(),{headers,cache:"no-store"});
+ let body={};try{body=await response.json();}catch{}
+ if(!response.ok){
+  const hint=response.status===401?"GitHub 토큰이 잘못되었거나 만료됐습니다.":response.status===403?"GitHub API 요청 제한 또는 토큰 권한을 확인하세요.":response.status===404?"대상 저장소를 찾을 수 없습니다. 토큰의 저장소 선택을 확인하세요.":"GitHub 데이터 읽기 실패 (HTTP "+response.status+").";
+  const e=new Error(hint);e.status=response.status;throw e;
+ }
+ if(!body.sha||!body.content)throw Error("GitHub 파일 정보에 SHA 또는 데이터가 없습니다.");
+ let data;try{data=JSON.parse(decodeGitHubBase64(body.content));}catch{throw Error("GitHub JSON을 읽을 수 없습니다.");}
+ if(!data||!Array.isArray(data.slots)||data.slots.length!==100)throw Error("GitHub 좌표는 반드시 100개여야 합니다.");
+ return {data,sha:body.sha};
+}
+async function publicFallback(){
+ const urls=["https://raw.githubusercontent.com/JHBahk/puzzle-of-z-web/main/alliance/data.json?_="+Date.now(),"./data.json?_="+Date.now()];
+ for(const url of urls){try{const r=await fetch(url,{cache:"no-store"});if(r.ok){const d=await r.json();if(Array.isArray(d.slots)&&d.slots.length===100)return {data:d,sha:null};}}catch{}}
+ throw Error("GitHub 공개 지도 데이터를 불러오지 못했습니다.");
+}
 async function reload(){
-try{
- const r=await fetch("./data.json?v="+Date.now(),{cache:"no-store"});
- if(!r.ok)throw Error("GitHub 공개 좌표 HTTP "+r.status);
- const remote=await r.json();
- if(!Array.isArray(remote.slots)||remote.slots.length!==100)throw Error("공개 좌표가 100개가 아닙니다.");
- const local=loadLocal(),rt=Date.parse(remote.updated_at_kst||"")||0,lt=Date.parse(local?.updated_at_kst||"")||0;
- if(local&&rt>lt){clearLocal();state.data=remote;state.isLocal=false;}
- else {state.data=local||remote;state.isLocal=!!local;}
+ let snapshot=null;
+ try{
+  snapshot=await githubRead(state.admin?state.token:"");
+  state.connected=Boolean(state.admin&&state.token);
+ }catch(err){
+  state.connected=false;
+  if(state.admin&&state.token)show("연결한 토큰을 확인하지 못했습니다: "+err.message,true);
+  try{snapshot=await githubRead("");}catch{snapshot=await publicFallback();}
+ }
+ if(!snapshot){show("좌표를 불러오지 못했습니다.",true);return false;}
+ state.data=snapshot.data;state.githubSha=snapshot.sha;
  render();
-}catch(err){const local=loadLocal();if(local){state.data=local;state.isLocal=true;render();show("공개 데이터 연결 실패: 이 기기의 저장본을 표시합니다.",true);}
- else show("좌표를 불러오지 못했습니다: "+err.message,true);}
+ return true;
 }
 const openDialog=id=>{$(id).hidden=false;document.body.style.overflow="hidden";};
 const closeDialog=id=>{$(id).hidden=true;document.body.style.overflow="";};
-function editOpen(){if(!state.admin)return;const p=state.data.slots.find(s=>s.number===state.selected);
-$("editNumber").value=p.number;$("editNickname").value=p.nickname||"";$("editX").value=p.x;$("editY").value=p.y;$("editError").textContent="";openDialog("editDialog");$("editNickname").focus();}
+function editOpen(){
+ if(!state.admin)return;
+ if(!state.connected){show("먼저 GitHub 토큰을 한 번 연결해 주세요.",true);$("tokenForm").scrollIntoView({behavior:"smooth",block:"center"});$("githubToken").focus();return;}
+ const p=state.data?.slots.find(s=>s.number===state.selected);if(!p)return;
+ $("editNumber").value=p.number;$("editNickname").value=p.nickname||"";$("editX").value=p.x;$("editY").value=p.y;$("editError").textContent="";openDialog("editDialog");$("editNickname").focus();
+}
 function cells(p,outpost=false){const [u,v]=uv(p.x,p.y);return (outpost?[[u,v]]:[[u,v],[u-1,v],[u,v-1],[u-1,v-1]]).map(([a,b])=>a+":"+b);}
 function inTerritory(d,p){const [u,v]=uv(p.x,p.y);
  return [{x:299,y:535,r:6},...d.outposts.map(o=>({...o,r:5}))].some(o=>{const [a,b]=uv(o.x,o.y);return Math.abs(a-u)<=o.r&&Math.abs(b-v)<=o.r;});}
@@ -100,7 +138,24 @@ function validateAll(d){
  }
  return "";
 }
+
 function downloadFile(name,content,mime){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type:mime}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
+async function githubWrite(draft,number){
+ if(!state.admin||!state.connected||!state.token||!state.githubSha)throw Error("먼저 GitHub 토큰을 연결해야 합니다.");
+ const body={message:"BAM alliance: update HQ "+number+" nickname and coordinates",content:encodeGitHubBase64(JSON.stringify(draft,null,2)+"\n"),sha:state.githubSha,branch:"main"};
+ const r=await fetch(GH_URL,{method:"PUT",headers:{"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json","Authorization":"Bearer "+state.token},body:JSON.stringify(body),cache:"no-store"});
+ let result={};try{result=await r.json();}catch{}
+ if(!r.ok){let msg=r.status===401||r.status===403?"토큰 권한이 부족합니다. 이 저장소의 Contents 읽기·쓰기 권한을 확인하세요.":r.status===409||r.status===422?"다른 수정사항이 먼저 저장됐습니다. GitHub 새로고침 후 다시 수정하세요.":"GitHub 저장에 실패했습니다 (HTTP "+r.status+").";
+  const e=new Error(msg);e.status=r.status;throw e;}
+ if(!result.commit?.sha)throw Error("GitHub에서 저장 커밋을 확인하지 못했습니다.");
+ // Read the actual committed data back before reporting success.
+ let verified;
+ try{verified=await githubRead(state.token);}catch(e){const error=new Error("저장 요청은 접수됐으나 GitHub 재확인에 실패했습니다. 다시 저장하지 말고 먼저 새로고침하세요.");error.status="UNVERIFIED";throw error;}
+ const desired=draft.slots.find(s=>s.number===number);
+ const actual=verified.data.slots.find(s=>s.number===number);
+ if(!actual||actual.x!==desired.x||actual.y!==desired.y||(actual.nickname||"")!==(desired.nickname||"")){const e=new Error("GitHub 재조회 결과가 수정한 내용과 다릅니다. 새로고침 후 확인하세요.");e.status="UNVERIFIED";throw e;}
+ state.data=verified.data;state.githubSha=verified.sha;render();return result.commit.sha;
+}
 $("mapSvg").addEventListener("click",e=>{if(state.drag?.moved)return;const grp=e.target.closest("[data-number]");if(grp)setSelect(grp.dataset.number);});
 $("mapSvg").addEventListener("keydown",e=>{if(e.key!=="Enter"&&e.key!==" ")return;const g=e.target.closest("[data-number]");if(g){e.preventDefault();setSelect(g.dataset.number);}});
 $("mapSvg").addEventListener("pointerdown",e=>{if(!state.view)return;$("mapStage").classList.add("dragging");state.drag={atX:e.clientX,atY:e.clientY,view:{...state.view},moved:false};e.currentTarget.setPointerCapture(e.pointerId);});
@@ -110,40 +165,40 @@ function stopDrag(){const was=state.drag;state.drag=null;$("mapStage").classList
 $("mapSvg").addEventListener("pointerup",stopDrag);$("mapSvg").addEventListener("pointercancel",stopDrag);
 $("mapSvg").addEventListener("wheel",e=>{if(!state.view)return;e.preventDefault();setZoom(e.deltaY<0?1.15:1/1.15);},{passive:false});
 $("zoomIn").onclick=()=>setZoom(1.27);$("zoomOut").onclick=()=>setZoom(1/1.27);$("resetZoom").onclick=()=>{state.view={...state.baseView};setView();};
-$("refresh").onclick=async()=>{await reload();show(state.isLocal?"이 기기 저장본을 다시 불러왔습니다.":"GitHub 공개 데이터를 다시 불러왔습니다.");};
+$("refresh").onclick=async()=>{try{const ok=await reload();if(ok)show(state.connected?"GitHub 토큰 연결과 최신 좌표를 확인했습니다.":"GitHub 최신 공개 좌표를 불러왔습니다.");}catch(e){show("새로고침 실패: "+e.message,true);}};
 $("search").oninput=e=>{state.search=e.target.value;listRender();};
 document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));listRender();});
 $("editOpen").onclick=editOpen;
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>closeDialog(b.dataset.close));
 document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)closeDialog(o.id);});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll(".overlay:not([hidden])").forEach(o=>closeDialog(o.id));});
-$("editForm").onsubmit=e=>{e.preventDefault();if(!state.admin)return;
-const number=state.selected;
-const nickname=$("editNickname").value.trim(),x=Number($("editX").value),y=Number($("editY").value);
-const draft=JSON.parse(JSON.stringify(state.data)),p=draft.slots.find(s=>s.number===number);
-p.x=x;p.y=y;p.nickname=nickname;const err=validateAll(draft);
-if(err){$("editError").textContent=err;return;}
-const existing=state.data.slots.find(s=>s.number===number);
-if(existing.x===x&&existing.y===y&&(existing.nickname||"")===nickname){closeDialog("editDialog");return;}
-draft.updated_at_kst=kstNow();
-if(!saveLocal(draft))return;
-state.data=draft;closeDialog("editDialog");render();show(number+"번 저장 완료 · 이 기기에만 저장됐습니다. 전체 공유는 JSON 내보내기 후 전달해 주세요.");
+$("editForm").onsubmit=async e=>{
+ e.preventDefault();if(!state.admin||state.busy)return;
+ const number=state.selected,nickname=$("editNickname").value.trim(),x=Number($("editX").value),y=Number($("editY").value);
+ const draft=JSON.parse(JSON.stringify(state.data)),p=draft.slots.find(s=>s.number===number);
+ p.x=x;p.y=y;p.nickname=nickname;
+ const err=validateAll(draft);if(err){$("editError").textContent=err;return;}
+ const prev=state.data.slots.find(s=>s.number===number);
+ if(prev.x===x&&prev.y===y&&(prev.nickname||"")===nickname){closeDialog("editDialog");return;}
+ draft.updated_at_kst=kstNow();
+ const button=$("editForm").querySelector("button[type=submit]");state.busy=true;button.disabled=true;button.textContent="GitHub 저장 중...";
+ try{await githubWrite(draft,number);closeDialog("editDialog");show(number+"번 GitHub 저장·재조회 완료! 다른 연맹원도 새로고침하면 보입니다.");}
+ catch(error){$("editError").textContent=error.message;if(error.status===409||error.status===422||error.status==="UNVERIFIED")show("저장 상태를 다시 확인해 주세요.",true);}
+ finally{state.busy=false;button.disabled=false;button.textContent="변경사항 저장";}
 };
 $("exportSvg").onclick=()=>{if(!state.data)return;const src='<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+[state.baseView.x,state.baseView.y,state.baseView.w,state.baseView.h].join(" ")+'">'+makeMap()+'</svg>';downloadFile("BAM_연맹_기지_100자리.svg",src,"image/svg+xml;charset=utf-8");};
 if(state.admin){
- $("exportJson").onclick=()=>{if(!state.data)return;downloadFile("BAM_연맹_좌표_100자리.json",JSON.stringify(state.data,null,2)+"\n","application/json;charset=utf-8");show("JSON 파일을 저장했습니다. 전체 공개 반영은 파일을 이 채팅에 보내 주세요.");};
- $("importJson").onclick=()=>$("importFile").click();
- $("importFile").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{
-  if(f.size>200000)throw Error("파일 크기가 너무 큽니다.");
-  const next=JSON.parse(await f.text()),err=validateAll(next);
-  if(err)throw Error(err);
-  if(!confirm("가져온 100자리 JSON으로 이 기기의 편집 내용을 교체할까요?"))return;
-  next.updated_at_kst=kstNow();
-  if(!saveLocal(next))return;
-  state.data=next;render();show("JSON 가져오기 완료 · 이 기기에서만 반영됐습니다.");
- }catch(err){show("JSON 가져오기 실패: "+err.message,true);}finally{e.target.value="";}};
- $("clearLocal").onclick=async()=>{if(!confirm("이 기기의 닉네임·좌표 수정 내용을 지우고 GitHub 공개 원본으로 돌아갈까요?\n먼저 JSON 내보내기로 백업하는 것을 권장합니다."))return;
- clearLocal();await reload();show("이 기기의 편집 내용을 초기화했습니다.");
+ $("tokenForm").onsubmit=async e=>{e.preventDefault();if(state.busy)return;const t=$("githubToken").value.trim();
+  if(t.length<20){show("GitHub에서 발급한 긴 토큰을 입력하세요. 숫자 7777은 GitHub 토큰이 아닙니다.",true);return;}
+  state.busy=true;const btn=$("tokenConnect");btn.disabled=true;btn.textContent="연결 확인 중...";
+  try{const doc=await githubRead(t);const old=state.token;state.token=t;state.connected=true;state.githubSha=doc.sha;state.data=doc.data;
+   if(!saveToken(t)){state.token=old;state.connected=false;throw Error("이 브라우저는 토큰 자동 저장을 허용하지 않습니다. 브라우저 설정을 확인하세요.");}
+   $("githubToken").value="";render();show("GitHub 연결 확인 완료. 이제 좌표 수정 시 저장소에 직접 기록됩니다.");}
+  catch(err){show("GitHub 토큰 연결 실패: "+err.message,true);}
+  finally{state.busy=false;btn.disabled=false;btn.textContent="한 번 연결하기";}
  };
+ $("tokenDisconnect").onclick=async()=>{if(!confirm("이 기기에 저장된 GitHub 토큰 연결을 해제할까요? 좌표 데이터는 유지됩니다."))return;removeToken();state.token="";state.connected=false;await reload();show("이 기기의 GitHub 토큰 연결을 해제했습니다.");};
+ $("exportJson").onclick=()=>{if(!state.data)return;downloadFile("BAM_연맹_좌표_100자리_백업.json",JSON.stringify(state.data,null,2)+"\n","application/json;charset=utf-8");show("현재 GitHub 좌표 데이터를 백업했습니다.");};
+ state.token=loadToken();
 }
-reload();
+reload().catch(err=>show("GitHub 데이터 읽기 실패: "+err.message,true));
