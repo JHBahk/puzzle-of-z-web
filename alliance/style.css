@@ -21,3 +21,31 @@ body[data-admin="1"] .intro h1 em{color:#b28035}
  .admin-note{font-size:12px;margin-bottom:14px;padding:14px}
  .brand-word small{letter-spacing:.09em}
 }
+
+
+/* GitHub direct-edit authentication (one token registration per device) */
+.auth-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.auth-header>div{min-width:0}
+.auth-header strong{font-size:16px;color:#785225}
+.auth-header p{margin:4px 0 12px;font-size:12px;color:#7f6c4c;line-height:1.55}
+.auth-chip{border:1px solid #dfcfae;background:#fff3d8;color:#96713d;padding:5px 10px;border-radius:999px;white-space:nowrap;font-size:11px;font-weight:800}
+.auth-chip.connected{background:#e2f7ef;color:#087762;border-color:#b9decf}
+.token-form{max-width:900px}
+.token-form label{display:block;font-weight:700;color:#6e5e47;font-size:12px;margin-bottom:7px}
+.token-fields{display:flex;align-items:stretch;gap:9px}
+.token-fields input{background:#fff;border:1px solid #dfd5c5;border-radius:10px;flex:1;min-width:0;padding:11px 13px;font:14px system-ui,sans-serif;color:#203b4f}
+.token-fields .primary-button{width:auto;min-width:126px;white-space:nowrap;flex:none}
+.admin-note .admin-tools{align-items:center;margin-top:12px}
+.admin-note .admin-tools .token-help{display:inline-flex;align-items:center;text-decoration:none}
+.admin-note .admin-tools .reset-button{margin-left:auto}
+.admin-security{margin:12px 0 0;font-size:11px;color:#806b46;line-height:1.6}
+.admin-security b{color:#754c27}
+body[data-admin="1"] .mode-small{color:#0b7a6f}
+@media(max-width:700px){
+ .token-fields{flex-direction:column}
+ .token-fields input{width:100%}
+ .token-fields .primary-button{width:100%}
+ .auth-header strong{font-size:14px}
+ .auth-header p{font-size:11px}
+ .admin-note .admin-tools .reset-button{margin-left:0}
+}
