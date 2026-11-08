@@ -190,7 +190,7 @@
       "number": 19,
       "x": 295,
       "y": 525,
-      "nickname": ""
+      "nickname": "레어"
     },
     {
       "number": 20,
@@ -679,6 +679,6 @@
       "nickname": ""
     }
   ],
-  "updated_at_kst": "2026-11-09T06:26:34+09:00",
+  "updated_at_kst": "2026-11-09T06:26:44+09:00",
   "note": "Prior 104-slot layout minus former slots 74 89 93 97, facilities warehouse and hospital X-2, renumbered 1-100 by distance from sound trap. Do not modify raid targets.; initial nickname list is empty until guild leader enters names."
 }
