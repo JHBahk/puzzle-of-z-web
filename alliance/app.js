@@ -1,7 +1,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
-const state={data:null,version:0,api:"",serverReady:false,token:sessionStorage.getItem("bam_admin_session")||"",selected:1,filter:"all",search:"",view:null,baseView:null,pointers:new Map(),drag:null};
-const url=(p)=>state.api.replace(/\/$/,"")+p;
+const state={data:null,selected:1,filter:"all",search:"",view:null,baseView:null,drag:null,admin:document.body.dataset.admin==="1",isLocal:false};
+const LOCAL_KEY="bam_alliance_local_v2";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const polygon=pts=>pts.map(([x,y])=>x+","+y).join(" ");
 const X=x=>x*30,Y=y=>y*17;
@@ -43,16 +43,64 @@ function makeMap(){
 function setView(){if(state.view){const v=state.view;$("mapSvg").setAttribute("viewBox",[v.x,v.y,v.w,v.h].join(" "));$("zoomLabel").textContent=Math.round(100*state.baseView.w/v.w)+"%";}}
 function mapRender(){const el=$("mapSvg");el.innerHTML=makeMap();setView();}
 function setZoom(f){if(!state.view)return;const v=state.view;const w=Math.min(state.baseView.w*2,Math.max(state.baseView.w/4,v.w/f)),h=Math.min(state.baseView.h*2,Math.max(state.baseView.h/4,v.h/f));v.x+=(v.w-w)/2;v.y+=(v.h-h)/2;v.w=w;v.h=h;setView();}
-function setSelect(n){const s=state.data.slots.find(x=>x.number===Number(n));if(!s)return;state.selected=s.number;$("selNum").textContent=fmt(s.number);$("selName").textContent=s.nickname?.trim()||"미등록 자리";$("selSub").textContent=s.nickname?"연맹원 등록됨":"지휘센터 빈 자리";$("selX").textContent=s.x;$("selY").textContent=s.y;$("focusHelp").textContent="대표 좌표 X:"+s.x+" / Y:"+s.y+" · 2×2 지휘센터";$("editOpen").hidden=!state.serverReady||!state.token;document.querySelectorAll(".slot-group").forEach(g=>g.querySelector(".hq-tile")?.classList.toggle("selected",Number(g.dataset.number)===s.number));document.querySelectorAll(".slot-row").forEach(b=>b.classList.toggle("active",Number(b.dataset.number)===s.number));}
+function setSelect(n){const s=state.data.slots.find(x=>x.number===Number(n));if(!s)return;state.selected=s.number;$("selNum").textContent=fmt(s.number);$("selName").textContent=s.nickname?.trim()||"미등록 자리";$("selSub").textContent=s.nickname?"연맹원 등록됨":"지휘센터 빈 자리";$("selX").textContent=s.x;$("selY").textContent=s.y;$("focusHelp").textContent="대표 좌표 X:"+s.x+" / Y:"+s.y+" · 2×2 지휘센터";$("editOpen").hidden=!state.admin;document.querySelectorAll(".slot-group").forEach(g=>g.querySelector(".hq-tile")?.classList.toggle("selected",Number(g.dataset.number)===s.number));document.querySelectorAll(".slot-row").forEach(b=>b.classList.toggle("active",Number(b.dataset.number)===s.number));}
 function listRender(){const el=$("slotList");el.innerHTML="";const q=state.search.trim().toLowerCase().replace(/\s+/g,"");const results=state.data.slots.filter(s=>(state.filter==="all"||(state.filter==="named"?!!s.nickname:!s.nickname))&&(!q||String(s.number).includes(q)||String(s.x)+","+s.y===q||("x"+s.x+"y"+s.y).includes(q)||s.nickname?.toLowerCase().includes(q)));
   $("listCount").textContent=results.length;for(const s of results){const b=document.createElement("button");b.type="button";b.className="slot-row"+(state.selected===s.number?" active":"");b.dataset.number=s.number;b.innerHTML=`<span class="row-no">${fmt(s.number)}</span><span class="row-body"><span class="row-name">${esc(s.nickname||"미등록 자리")}</span><span class="row-coords">X ${s.x} · Y ${s.y}</span></span><span class="row-status ${s.nickname?"filled":""}">${s.nickname?"등록":"빈자리"}</span>`;b.onclick=()=>{setSelect(s.number);if(window.innerWidth<961)$("mapStage").scrollIntoView({behavior:"smooth",block:"nearest"});};el.append(b);}if(!results.length)el.innerHTML='<div class="empty-list">조건에 맞는 자리가 없습니다.</div>';}
-function render(){if(!state.data)return;const slots=state.data.slots;const occupied=slots.filter(s=>s.nickname?.trim()).length;$("countTotal").textContent=slots.length;$("countRegistered").textContent=occupied;$("countVacant").textContent=slots.length-occupied;$("modeStatus").textContent=state.serverReady?(state.token?"관리자":"실시간 조회"):"공개 조회";$("updated").textContent=state.serverReady?"서버 DB 동기화":"기본 지도 데이터";$("adminOpen").textContent=state.token&&state.serverReady?"관리자 로그아웃":"관리자 로그인";mapRender();listRender();setSelect(state.selected);}
-async function apiRequest(path,opt={}){const headers={"Content-Type":"application/json",...(opt.headers||{})};if(state.token)headers.Authorization="Bearer "+state.token;const res=await fetch(url(path),{...opt,headers,cache:"no-store"});let body;try{body=await res.json();}catch{body={};}if(!res.ok){const e=new Error(body.error||"서버 요청 실패 ("+res.status+")");e.status=res.status;throw e;}return body;}
-async function reload(){try{const cf=await fetch("./config.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.ok?r.json():{}).catch(()=>({}));state.api=(cf.apiBase||"").trim();state.serverReady=false;let raw;if(state.api){try{raw=await apiRequest("/api/state");state.serverReady=true;state.version=raw.version;raw=raw.data;}catch(e){show("편집 서버에 연결할 수 없어 기본 공개 지도를 표시합니다: "+e.message,true);}}if(!raw){const resp=await fetch("./data.json?v="+Date.now(),{cache:"no-store"});if(!resp.ok)throw Error("지도 데이터 HTTP "+resp.status);raw=await resp.json();}if(!Array.isArray(raw.slots)||raw.slots.length!==100)throw Error("지도 데이터의 지휘센터 100개를 확인할 수 없습니다.");state.data=raw;if(!state.serverReady)state.token="";render();}catch(e){show("좌표를 불러오지 못했습니다: "+e.message,true);}}
+function render(){if(!state.data)return;
+const slots=state.data.slots,occupied=slots.filter(s=>s.nickname?.trim()).length;
+$("countTotal").textContent=slots.length;
+$("countRegistered").textContent=occupied;
+$("countVacant").textContent=slots.length-occupied;
+$("modeStatus").textContent=state.admin?"이 기기 편집":(state.isLocal?"이 기기 수정":"공개 조회");
+$("updated").textContent=state.isLocal?"브라우저에 저장된 수정본":(state.admin?"기본 공개 데이터":"GitHub 공개 데이터");
+mapRender();listRender();setSelect(state.selected);
+}
+const kstNow=()=>new Date(Date.now()+9*3600000).toISOString().slice(0,19)+"+09:00";
+function saveLocal(data){try{localStorage.setItem(LOCAL_KEY,JSON.stringify(data));state.isLocal=true;return true;}catch(e){show("기기 저장에 실패했습니다. JSON 파일로 내보내기를 이용해 주세요.",true);return false;}}
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LOCAL_KEY)||"null");return d&&Array.isArray(d.slots)&&d.slots.length===100?d:null;}catch{return null;}}
+function clearLocal(){try{localStorage.removeItem(LOCAL_KEY);state.isLocal=false;}catch(e){show("브라우저 저장 데이터를 삭제하지 못했습니다.",true);}}
+async function reload(){
+try{
+ const r=await fetch("./data.json?v="+Date.now(),{cache:"no-store"});
+ if(!r.ok)throw Error("GitHub 공개 좌표 HTTP "+r.status);
+ const remote=await r.json();
+ if(!Array.isArray(remote.slots)||remote.slots.length!==100)throw Error("공개 좌표가 100개가 아닙니다.");
+ const local=loadLocal(),rt=Date.parse(remote.updated_at_kst||"")||0,lt=Date.parse(local?.updated_at_kst||"")||0;
+ if(local&&rt>lt){clearLocal();state.data=remote;state.isLocal=false;}
+ else {state.data=local||remote;state.isLocal=!!local;}
+ render();
+}catch(err){const local=loadLocal();if(local){state.data=local;state.isLocal=true;render();show("공개 데이터 연결 실패: 이 기기의 저장본을 표시합니다.",true);}
+ else show("좌표를 불러오지 못했습니다: "+err.message,true);}
+}
 const openDialog=id=>{$(id).hidden=false;document.body.style.overflow="hidden";};
 const closeDialog=id=>{$(id).hidden=true;document.body.style.overflow="";};
-function editOpen(){if(!state.token||!state.serverReady){show("관리자 인증 서버 연결 후 수정할 수 있습니다.",true);return;}const s=state.data.slots.find(s=>s.number===state.selected);$("editNumber").value=s.number;$("editNickname").value=s.nickname||"";$("editX").value=s.x;$("editY").value=s.y;$("editError").textContent="";openDialog("editDialog");$("editNickname").focus();}
-function showLogin(){if(state.token){state.token="";sessionStorage.removeItem("bam_admin_session");render();show("관리자 로그아웃 완료");return;}if(!state.serverReady){show("공개 조회 페이지는 준비됐습니다. 연맹장 수정 기능은 별도 인증 서버 배포 후 열립니다.",true);return;}$("loginError").textContent="";$("pinInput").value="";openDialog("loginDialog");$("pinInput").focus();}
+function editOpen(){if(!state.admin)return;const p=state.data.slots.find(s=>s.number===state.selected);
+$("editNumber").value=p.number;$("editNickname").value=p.nickname||"";$("editX").value=p.x;$("editY").value=p.y;$("editError").textContent="";openDialog("editDialog");$("editNickname").focus();}
+function cells(p,outpost=false){const [u,v]=uv(p.x,p.y);return (outpost?[[u,v]]:[[u,v],[u-1,v],[u,v-1],[u-1,v-1]]).map(([a,b])=>a+":"+b);}
+function inTerritory(d,p){const [u,v]=uv(p.x,p.y);
+ return [{x:299,y:535,r:6},...d.outposts.map(o=>({...o,r:5}))].some(o=>{const [a,b]=uv(o.x,o.y);return Math.abs(a-u)<=o.r&&Math.abs(b-v)<=o.r;});}
+function validateAll(d){
+ if(!d||!Array.isArray(d.slots)||d.slots.length!==100||!Array.isArray(d.facilities)||!Array.isArray(d.outposts)||!Array.isArray(d.mountains))return "지휘센터 100개 데이터 형식을 확인하세요.";
+ if(d.facilities.length!==5||d.outposts.length!==4)return "필수 연맹시설 또는 전초 수가 다릅니다.";
+ const ids=new Set(),occupied=new Set();
+ function take(p,isOutpost=false){
+  if(!Number.isInteger(p.x)||!Number.isInteger(p.y)||p.x<0||p.y<0||p.x>2000||p.y>2000||((p.x+p.y)%2))return "좌표가 게임 격자와 맞지 않습니다.";
+  for(const c of cells(p,isOutpost)){if(occupied.has(c))return "건물·산·전초기지와 2×2 점유 칸이 겹칩니다.";occupied.add(c);}
+  return "";
+ }
+ for(const f of d.facilities){const e=take(f);if(e)return e;}
+ for(const m of d.mountains){const e=take(m);if(e)return e;}
+ for(const o of d.outposts){const e=take(o,true);if(e)return e;}
+ for(const p of d.slots){
+  if(!Number.isInteger(p.number)||p.number<1||p.number>100||ids.has(p.number))return "1~100 번호가 중복되거나 누락됐습니다.";
+  ids.add(p.number);
+  if(typeof p.nickname!=="string"||[...p.nickname].length>24||/[\u0000-\u001F\u007F]/.test(p.nickname))return "닉네임은 24자 이내로 입력하세요.";
+  if(!inTerritory(d,p))return p.number+"번 지휘센터가 연맹 녹색선 밖입니다.";
+  const e=take(p);if(e)return p.number+"번: "+e;
+ }
+ return "";
+}
+function downloadFile(name,content,mime){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([content],{type:mime}));a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
 $("mapSvg").addEventListener("click",e=>{if(state.drag?.moved)return;const grp=e.target.closest("[data-number]");if(grp)setSelect(grp.dataset.number);});
 $("mapSvg").addEventListener("keydown",e=>{if(e.key!=="Enter"&&e.key!==" ")return;const g=e.target.closest("[data-number]");if(g){e.preventDefault();setSelect(g.dataset.number);}});
 $("mapSvg").addEventListener("pointerdown",e=>{if(!state.view)return;$("mapStage").classList.add("dragging");state.drag={atX:e.clientX,atY:e.clientY,view:{...state.view},moved:false};e.currentTarget.setPointerCapture(e.pointerId);});
@@ -62,14 +110,40 @@ function stopDrag(){const was=state.drag;state.drag=null;$("mapStage").classList
 $("mapSvg").addEventListener("pointerup",stopDrag);$("mapSvg").addEventListener("pointercancel",stopDrag);
 $("mapSvg").addEventListener("wheel",e=>{if(!state.view)return;e.preventDefault();setZoom(e.deltaY<0?1.15:1/1.15);},{passive:false});
 $("zoomIn").onclick=()=>setZoom(1.27);$("zoomOut").onclick=()=>setZoom(1/1.27);$("resetZoom").onclick=()=>{state.view={...state.baseView};setView();};
-$("refresh").onclick=async()=>{await reload();show("최신 배치도 데이터를 다시 불러왔습니다.");};
+$("refresh").onclick=async()=>{await reload();show(state.isLocal?"이 기기 저장본을 다시 불러왔습니다.":"GitHub 공개 데이터를 다시 불러왔습니다.");};
 $("search").oninput=e=>{state.search=e.target.value;listRender();};
 document.querySelectorAll("[data-filter]").forEach(b=>b.onclick=()=>{state.filter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(x=>x.classList.toggle("active",x===b));listRender();});
-$("adminOpen").onclick=showLogin;$("editOpen").onclick=editOpen;
+$("editOpen").onclick=editOpen;
 document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>closeDialog(b.dataset.close));
 document.querySelectorAll(".overlay").forEach(o=>o.onclick=e=>{if(e.target===o)closeDialog(o.id);});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll(".overlay:not([hidden])").forEach(o=>closeDialog(o.id));});
-$("loginForm").onsubmit=async e=>{e.preventDefault();const b=$("loginForm").querySelector("button");b.disabled=true;try{const r=await apiRequest("/api/login",{method:"POST",body:JSON.stringify({pin:$("pinInput").value})});state.token=r.token;sessionStorage.setItem("bam_admin_session",r.token);closeDialog("loginDialog");render();show("연맹장 관리 모드가 열렸습니다.");}catch(err){$("loginError").textContent=err.message;}finally{b.disabled=false;}};
-$("editForm").onsubmit=async e=>{e.preventDefault();const button=$("editForm").querySelector("button");button.disabled=true;const payload={number:state.selected,nickname:$("editNickname").value.trim(),x:Number($("editX").value),y:Number($("editY").value),expected_version:state.version};try{const r=await apiRequest("/api/slot",{method:"PUT",body:JSON.stringify(payload)});state.version=r.version;state.data=r.data;closeDialog("editDialog");render();show(payload.number+"번 자리 저장 완료 · 모든 연맹원에게 반영됩니다.");}catch(err){$("editError").textContent=err.message;if(err.status===409)show("다른 관리자가 먼저 수정했습니다. 새로고침 후 다시 수정하세요.",true);if(err.status===401){state.token="";sessionStorage.removeItem("bam_admin_session");}}finally{button.disabled=false;}};
-$("exportSvg").onclick=()=>{if(!state.data)return;const svg=$("mapSvg");const src='<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+[state.baseView.x,state.baseView.y,state.baseView.w,state.baseView.h].join(" ")+'">'+makeMap()+'</svg>';const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([src],{type:"image/svg+xml;charset=utf-8"}));a.download="BAM_연맹_기지_100자리.svg";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),400);};
+$("editForm").onsubmit=e=>{e.preventDefault();if(!state.admin)return;
+const number=state.selected;
+const nickname=$("editNickname").value.trim(),x=Number($("editX").value),y=Number($("editY").value);
+const draft=JSON.parse(JSON.stringify(state.data)),p=draft.slots.find(s=>s.number===number);
+p.x=x;p.y=y;p.nickname=nickname;const err=validateAll(draft);
+if(err){$("editError").textContent=err;return;}
+const existing=state.data.slots.find(s=>s.number===number);
+if(existing.x===x&&existing.y===y&&(existing.nickname||"")===nickname){closeDialog("editDialog");return;}
+draft.updated_at_kst=kstNow();
+if(!saveLocal(draft))return;
+state.data=draft;closeDialog("editDialog");render();show(number+"번 저장 완료 · 이 기기에만 저장됐습니다. 전체 공유는 JSON 내보내기 후 전달해 주세요.");
+};
+$("exportSvg").onclick=()=>{if(!state.data)return;const src='<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+[state.baseView.x,state.baseView.y,state.baseView.w,state.baseView.h].join(" ")+'">'+makeMap()+'</svg>';downloadFile("BAM_연맹_기지_100자리.svg",src,"image/svg+xml;charset=utf-8");};
+if(state.admin){
+ $("exportJson").onclick=()=>{if(!state.data)return;downloadFile("BAM_연맹_좌표_100자리.json",JSON.stringify(state.data,null,2)+"\n","application/json;charset=utf-8");show("JSON 파일을 저장했습니다. 전체 공개 반영은 파일을 이 채팅에 보내 주세요.");};
+ $("importJson").onclick=()=>$("importFile").click();
+ $("importFile").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{
+  if(f.size>200000)throw Error("파일 크기가 너무 큽니다.");
+  const next=JSON.parse(await f.text()),err=validateAll(next);
+  if(err)throw Error(err);
+  if(!confirm("가져온 100자리 JSON으로 이 기기의 편집 내용을 교체할까요?"))return;
+  next.updated_at_kst=kstNow();
+  if(!saveLocal(next))return;
+  state.data=next;render();show("JSON 가져오기 완료 · 이 기기에서만 반영됐습니다.");
+ }catch(err){show("JSON 가져오기 실패: "+err.message,true);}finally{e.target.value="";}};
+ $("clearLocal").onclick=async()=>{if(!confirm("이 기기의 닉네임·좌표 수정 내용을 지우고 GitHub 공개 원본으로 돌아갈까요?\n먼저 JSON 내보내기로 백업하는 것을 권장합니다."))return;
+ clearLocal();await reload();show("이 기기의 편집 내용을 초기화했습니다.");
+ };
+}
 reload();
