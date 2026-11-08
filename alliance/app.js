@@ -75,6 +75,7 @@ function renderAuth(){
  $("authChip").classList.toggle("connected",c);
  $("authStatus").textContent=c?"이 기기는 GitHub 저장소에 연결됐습니다. 좌표 수정 시 모든 연맹원에게 공유됩니다.":(state.token?"저장된 토큰을 확인할 수 없습니다. 토큰을 다시 연결해 주세요.":"최초 한 번만 이 웹 저장소 전용 GitHub 토큰을 등록하세요.");
  $("tokenForm").hidden=c;
+ $("tokenHelp").hidden=c;
  $("tokenDisconnect").hidden=!state.token;
 }
 function decodeGitHubBase64(b64){const b=atob(String(b64||"").replace(/\s+/g,""));return new TextDecoder().decode(Uint8Array.from(b,ch=>ch.charCodeAt(0)));}
