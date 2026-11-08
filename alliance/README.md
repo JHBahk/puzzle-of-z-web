@@ -23,7 +23,7 @@
 ## 관리자 모드 자동 설치 (권장)
 현재 **웹의 관리자 로그인 화면과 서버 API 코드까지 작성돼 있지만, Cloudflare 계정 연결 전에는 실제 관리자 로그인이 불가능**하다. GitHub Pages는 정적 호스팅이므로 독립 서버가 필요하다.
 
-1. Cloudflare 무료 계정에 로그인하고 **계정 ID(Account ID)**를 확인한다.
+1. Cloudflare 무료 계정에 로그인하고 **계정 ID(Account ID)**를 확인한다. 처음 쓰는 계정이면 **Workers & Pages → workers.dev 서브도메인**도 설정한다(배포 과정의 대화형 설정을 GitHub Actions에서는 진행할 수 없음).
 2. Cloudflare에서 API Token을 생성한다. 계정의 **Workers Scripts Edit** 및 **D1 Edit** 권한이 필요하다. 토큰 범위는 가능한 한 해당 계정으로 제한한다.
 3. 공개 웹 저장소 [GitHub Actions secrets](https://github.com/JHBahk/puzzle-of-z-web/settings/secrets/actions)에 다음 **3개 비밀값**을 등록한다.
    - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 계정 ID
