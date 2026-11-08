@@ -91,3 +91,24 @@ body[data-admin="1"] .mode-small{color:#0b7a6f}
   .workbench .focus-panel .coord-grid{margin:13px 0}
   .workbench .list-panel .slot-list{max-height:460px}
 }
+
+
+/* Text-fit fix: English HQ names were too large for the diamond cells. */
+.map-stage .hq-nick{
+  font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR","Apple SD Gothic Neo",system-ui,sans-serif;
+  font-size:10.5px;
+  font-weight:550;
+  letter-spacing:0;
+}
+.map-stage .hq-nick.latin{font-size:9.5px;font-weight:500}
+.workbench .side-column{align-items:stretch}
+.workbench .side-column>.panel,.workbench .side-column>.admin-note{width:100%;min-width:0}
+.workbench .focus-head{min-width:0}
+.workbench .focus-head>div:last-child{min-width:0;flex:1}
+.workbench .focus-head h2{
+  font-size:clamp(16px,4vw,19px);
+  font-weight:650;
+  line-height:1.3;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
