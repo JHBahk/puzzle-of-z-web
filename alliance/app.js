@@ -13,7 +13,7 @@ const tilePoints=(x,y,t)=>polygon(diamond(x,y,t).map(([a,b])=>[X(a),Y(b)]));
 const fmt=(n)=>String(n).padStart(2,"0");
 function show(message,bad=false){const el=$("notice");el.textContent=message;el.classList.toggle("error",bad);el.hidden=false;clearTimeout(show.timer);show.timer=setTimeout(()=>el.hidden=true,7000);}
 function territory(data){const cells=new Set();function add(x,y,r){const [u,v]=uv(x,y);for(let i=-r;i<=r;i++)for(let j=-r;j<=r;j++)cells.add(k(u+i,v+j));}add(299,535,6);for(const p of data.outposts)add(p.x,p.y,5);return cells;}
-const mapStyles=`.territory{fill:#e5f5df;opacity:.7}.territory-border{stroke:#409267;stroke-width:2.7;stroke-linecap:round}.hq-tile{fill:#d9ebf8;stroke:#87b3ce;stroke-width:1.2;cursor:pointer}.hq-tile.boundary{fill:#fce3a5;stroke:#cba15a}.hq-tile.registered{fill:#9bddd3;stroke:#62bcb1}.hq-tile.selected{fill:#fff0b5;stroke:#dc8f33;stroke-width:3}.special-tile{stroke:#f5fbff;stroke-width:1.2}.mountain{fill:#89969e}.outpost{fill:#f07040}.fort,.sound,.steel{fill:#20465e}.warehouse,.hospital{fill:#168c80}.hq-no{text-anchor:middle;dominant-baseline:middle;font:750 20px system-ui,sans-serif;fill:#173b54}.hq-nick{text-anchor:middle;dominant-baseline:middle;font:700 12px system-ui,sans-serif;fill:#035b52}.special-label{text-anchor:middle;dominant-baseline:middle;font:700 15px system-ui,sans-serif;fill:#fff}.outpost-label{text-anchor:middle;dominant-baseline:middle;font:800 11px system-ui,sans-serif;fill:#fff}.mount-label{text-anchor:middle;dominant-baseline:middle;font:700 14px system-ui,sans-serif;fill:#fff}.heading-label{font:700 17px system-ui,sans-serif;fill:#668b8f;letter-spacing:1px}`;
+const mapStyles=`.territory{fill:#e5f5df;opacity:.7}.territory-border{stroke:#409267;stroke-width:2.7;stroke-linecap:round}.hq-tile{fill:#d9ebf8;stroke:#87b3ce;stroke-width:1.2;cursor:pointer}.hq-tile.boundary{fill:#fce3a5;stroke:#cba15a}.hq-tile.registered{fill:#9bddd3;stroke:#62bcb1}.hq-tile.selected{fill:#fff0b5;stroke:#dc8f33;stroke-width:3}.special-tile{stroke:#f5fbff;stroke-width:1.2}.mountain{fill:#89969e}.outpost{fill:#f07040}.fort,.sound,.steel{fill:#20465e}.warehouse,.hospital{fill:#168c80}.hq-no{text-anchor:middle;dominant-baseline:middle;font:750 20px system-ui,sans-serif;fill:#173b54}.hq-nick{text-anchor:middle;dominant-baseline:middle;font:550 10.5px system-ui,sans-serif;fill:#035b52}.hq-nick.latin{font-size:9.5px;font-weight:500;letter-spacing:0}.special-label{text-anchor:middle;dominant-baseline:middle;font:700 15px system-ui,sans-serif;fill:#fff}.outpost-label{text-anchor:middle;dominant-baseline:middle;font:800 11px system-ui,sans-serif;fill:#fff}.mount-label{text-anchor:middle;dominant-baseline:middle;font:700 14px system-ui,sans-serif;fill:#fff}.heading-label{font:700 17px system-ui,sans-serif;fill:#668b8f;letter-spacing:1px}`;
 function makeMap(){
   const data=state.data,territ=territory(data);if(!data)return "";
   const coords=[...territ].map(s=>{const [u,v]=s.split(":").map(Number);return {u,v,x:u-v,y:u+v}});
@@ -36,7 +36,17 @@ function makeMap(){
     out+=poly(s.x,s.y,"two",className,s.number+"번 "+label+" X:"+s.x+" Y:"+s.y);
     const nick=s.nickname?.trim();const numberY=Y(s.y-1)+(nick?-9:0);
     out+=`<text class="hq-no" x="${X(s.x)}" y="${numberY}">${s.number}</text>`;
-    if(nick){const short=[...nick].slice(0,9).join("");out+=`<text class="hq-nick" textLength="${Math.min(95,Math.max(24,[...short].length*12))}" lengthAdjust="spacingAndGlyphs" x="${X(s.x)}" y="${Y(s.y-1)+15}">${esc(short)}</text>`;}
+    if(nick){const short=[...nick].slice(0,9).join("");
+      const latin=/[A-Za-z]/.test(short),fontSize=latin?9.5:10.5;
+      const estimatedWidth=[...short].reduce((sum,ch)=>sum+(
+        /[가-힣\u3400-\u9FFF]/u.test(ch)?fontSize:
+        /[WM@%]/.test(ch)?fontSize*.88:
+        /[il1.,·\s]/.test(ch)?fontSize*.34:fontSize*.59
+      ),0);
+      // At the nickname baseline the diamond is ~67 SVG units wide. Keep 9 units of margin.
+      const fit=estimatedWidth>50?' textLength="50" lengthAdjust="spacingAndGlyphs"':"";
+      out+=`<text class="hq-nick${latin?" latin":""}"${fit} x="${X(s.x)}" y="${Y(s.y-1)+15}">${esc(short)}</text>`;}
+
     out+='</g>';
   }
   out+='</g>';return out;
