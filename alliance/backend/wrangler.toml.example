@@ -1,0 +1,8 @@
+name = "bam-alliance-api"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bam-alliance"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
