@@ -47,15 +47,12 @@ function setZoom(f){if(!state.view)return;const v=state.view;const w=Math.min(st
 function setSelect(n){const s=state.data.slots.find(x=>x.number===Number(n));if(!s)return;state.selected=s.number;$("selNum").textContent=fmt(s.number);$("selName").textContent=s.nickname?.trim()||"미등록 자리";$("selSub").textContent=s.nickname?"연맹원 등록됨":"지휘센터 빈 자리";$("selX").textContent=s.x;$("selY").textContent=s.y;$("focusHelp").textContent="대표 좌표 X:"+s.x+" / Y:"+s.y+" · 2×2 지휘센터";$("editOpen").hidden=!state.admin;document.querySelectorAll(".slot-group").forEach(g=>g.querySelector(".hq-tile")?.classList.toggle("selected",Number(g.dataset.number)===s.number));document.querySelectorAll(".slot-row").forEach(b=>b.classList.toggle("active",Number(b.dataset.number)===s.number));}
 function listRender(){const el=$("slotList");el.innerHTML="";const q=state.search.trim().toLowerCase().replace(/\s+/g,"");const results=state.data.slots.filter(s=>(state.filter==="all"||(state.filter==="named"?!!s.nickname:!s.nickname))&&(!q||String(s.number).includes(q)||String(s.x)+","+s.y===q||("x"+s.x+"y"+s.y).includes(q)||s.nickname?.toLowerCase().includes(q)));
   $("listCount").textContent=results.length;for(const s of results){const b=document.createElement("button");b.type="button";b.className="slot-row"+(state.selected===s.number?" active":"");b.dataset.number=s.number;b.innerHTML=`<span class="row-no">${fmt(s.number)}</span><span class="row-body"><span class="row-name">${esc(s.nickname||"미등록 자리")}</span><span class="row-coords">X ${s.x} · Y ${s.y}</span></span><span class="row-status ${s.nickname?"filled":""}">${s.nickname?"등록":"빈자리"}</span>`;b.onclick=()=>{setSelect(s.number);if(window.innerWidth<961)$("mapStage").scrollIntoView({behavior:"smooth",block:"nearest"});};el.append(b);}if(!results.length)el.innerHTML='<div class="empty-list">조건에 맞는 자리가 없습니다.</div>';}
-function render(){if(!state.data)return;
-const slots=state.data.slots,occupied=slots.filter(s=>s.nickname?.trim()).length;
-$("countTotal").textContent=slots.length;
-$("countRegistered").textContent=occupied;
-$("countVacant").textContent=slots.length-occupied;
-$("modeStatus").textContent=state.admin?(state.connected?"GitHub 연결됨":"연결 필요"):"공개 조회";
-$("updated").textContent=state.githubSha?"GitHub 최신 데이터":"공개 배치도";
-if(state.admin)renderAuth();
-mapRender();listRender();setSelect(state.selected);
+function render(){
+ if(!state.data)return;
+ if(state.admin)renderAuth();
+ mapRender();
+ listRender();
+ setSelect(state.selected);
 }
 const kstNow=()=>new Date(Date.now()+9*3600000).toISOString().slice(0,19)+"+09:00";
 function loadToken(){try{return localStorage.getItem(TOKEN_KEY)||"";}catch{return "";}}
