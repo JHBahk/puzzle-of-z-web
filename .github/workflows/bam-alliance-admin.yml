@@ -1,0 +1,134 @@
+name: BAM alliance admin - deploy secure edit server
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DEPLOY to set up the independent alliance admin backend"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bam-alliance-admin-deploy
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    if: ${{ inputs.confirm == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BAM_ADMIN_PIN: ${{ secrets.BAM_ADMIN_PIN }}
+    steps:
+      - name: Check credentials exist
+        shell: bash
+        run: |
+          if [[ -z "$CLOUDFLARE_API_TOKEN" || -z "$CLOUDFLARE_ACCOUNT_ID" || -z "$BAM_ADMIN_PIN" ]]; then
+            echo "::error::Missing GitHub Actions secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, BAM_ADMIN_PIN"
+            exit 1
+          fi
+
+      - name: Checkout website repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Install Wrangler
+        shell: bash
+        run: |
+          npm install --no-save wrangler@latest
+          npx wrangler --version
+
+      - name: Create or reuse independent D1 database
+        shell: bash
+        working-directory: alliance/backend
+        run: |
+          set -euo pipefail
+          npx wrangler d1 list --json > /tmp/bam-d1.json
+          if ! python3 -c 'import json; d=json.load(open("/tmp/bam-d1.json")); d=d.get("result",d) if isinstance(d,dict) else d; exit(0 if any(x.get("name")=="bam-alliance" for x in d) else 1)'; then
+            npx wrangler d1 create bam-alliance --location apac
+            npx wrangler d1 list --json > /tmp/bam-d1.json
+          fi
+          python3 - <<'PY'
+          import json,uuid
+          d=json.load(open("/tmp/bam-d1.json"))
+          d=d.get("result",d) if isinstance(d,dict) else d
+          match=next((r for r in d if r.get("name")=="bam-alliance"),None)
+          if not match: raise RuntimeError("bam-alliance D1 database not found")
+          db_id=str(match.get("uuid") or match.get("id") or "")
+          uuid.UUID(db_id)
+          config=f'name = "bam-alliance-api"\nmain = "worker.js"\ncompatibility_date = "2026-11-01"\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "bam-alliance"\ndatabase_id = "{db_id}"\n'
+          open("wrangler.toml","w").write(config)
+          print("Standalone D1 configuration created")
+          PY
+
+      - name: Install D1 tables
+        shell: bash
+        working-directory: alliance/backend
+        run: npx wrangler d1 execute bam-alliance --remote --file=./schema.sql --yes
+
+      - name: Deploy Worker
+        shell: bash
+        working-directory: alliance/backend
+        run: |
+          set -euo pipefail
+          npx wrangler deploy --config wrangler.toml 2>&1 | tee /tmp/bam-worker-deploy.log
+
+      - name: Install private editor PIN and new session secret
+        shell: bash
+        working-directory: alliance/backend
+        run: |
+          set -euo pipefail
+          printf "%s" "$BAM_ADMIN_PIN" | npx wrangler secret put ADMIN_PIN --config wrangler.toml
+          openssl rand -hex 32 | npx wrangler secret put SESSION_SECRET --config wrangler.toml
+
+      - name: Verify live backend and connect public viewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, pathlib, re
+          log=pathlib.Path("/tmp/bam-worker-deploy.log").read_text()
+          matches=re.findall(r"https://[a-zA-Z0-9.-]+\\.workers\\.dev",log)
+          if not matches: raise RuntimeError("Could not detect workers.dev URL. Check Worker subdomain activation.")
+          url=matches[-1].rstrip("/")
+          cfg=pathlib.Path("alliance/config.json")
+          body=json.loads(cfg.read_text())
+          body["apiBase"]=url
+          cfg.write_text(json.dumps(body,ensure_ascii=False,indent=2)+"\n")
+          pathlib.Path("/tmp/bam-url").write_text(url)
+          print("Backend URL:",url)
+          PY
+          URL="$(cat /tmp/bam-url)"
+          curl --fail --silent --show-error --max-time 25 "$URL/api/health" > /tmp/bam-health.json
+          curl --fail --silent --show-error --max-time 25 "$URL/api/state" > /tmp/bam-state.json
+          python3 - <<'PY'
+          import json
+          health=json.load(open("/tmp/bam-health.json"))
+          state=json.load(open("/tmp/bam-state.json"))
+          assert health["ok"] and len(state["data"]["slots"])==100
+          print("Live backend verified: 100 HQ records")
+          PY
+
+      - name: Connect web frontend to backend URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add alliance/config.json
+          if git diff --cached --quiet; then
+            echo "API address unchanged"
+          else
+            git commit -m "Connect BAM alliance editor to deployed Cloudflare Worker"
+            git push origin HEAD:main
+          fi
+          echo "### BAM administrator mode installed" >> "$GITHUB_STEP_SUMMARY"
+          echo "Verified: 100 HQ records, independent D1, server-side PIN, live API." >> "$GITHUB_STEP_SUMMARY"
+          echo "Open: https://jhbahk.github.io/puzzle-of-z-web/alliance/" >> "$GITHUB_STEP_SUMMARY"
+          echo "Wait for GitHub Pages deployment to finish before logging in." >> "$GITHUB_STEP_SUMMARY"
