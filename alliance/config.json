@@ -1,0 +1,4 @@
+{
+  "apiBase": "",
+  "note": "Set apiBase to the deployed Cloudflare Worker origin. Empty means public viewer mode only. Do not store secrets here."
+}
