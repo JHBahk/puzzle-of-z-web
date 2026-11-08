@@ -20,7 +20,22 @@
 - 최초 100개와 시설/산/전초의 2×2 점유 겹침 없음. 지도는 정적 PNG 덧칠이 아니라 좌표에서 SVG를 재계산해 렌더링.
 - 황무지 경계 및 게임 내 지형 장애물은 별도 수동 확인 필요.
 
-## 연맹장 편집용 서버 연결 (최초 1회)
+## 관리자 모드 자동 설치 (권장)
+현재 **웹의 관리자 로그인 화면과 서버 API 코드까지 작성돼 있지만, Cloudflare 계정 연결 전에는 실제 관리자 로그인이 불가능**하다. GitHub Pages는 정적 호스팅이므로 독립 서버가 필요하다.
+
+1. Cloudflare 무료 계정에 로그인하고 **계정 ID(Account ID)**를 확인한다.
+2. Cloudflare에서 API Token을 생성한다. 계정의 **Workers Scripts Edit** 및 **D1 Edit** 권한이 필요하다. 토큰 범위는 가능한 한 해당 계정으로 제한한다.
+3. 공개 웹 저장소 [GitHub Actions secrets](https://github.com/JHBahk/puzzle-of-z-web/settings/secrets/actions)에 다음 **3개 비밀값**을 등록한다.
+   - `CLOUDFLARE_ACCOUNT_ID`: Cloudflare 계정 ID
+   - `CLOUDFLARE_API_TOKEN`: Cloudflare API Token
+   - `BAM_ADMIN_PIN`: 연맹장 수정 PIN `7777`
+4. [BAM 관리자 배포 작업](https://github.com/JHBahk/puzzle-of-z-web/actions/workflows/bam-alliance-admin.yml)에서 **Run workflow**, 입력란에 `DEPLOY`을 입력해 실행한다.
+5. 배포 작업은 자동으로 `bam-alliance` D1 DB 생성/재사용, 테이블 설치, Worker 배포, 비밀 PIN 설정, 100개 좌표 데이터 검증, `alliance/config.json`에 공개 API 주소 연결을 수행한다. 완료 후 GitHub Pages 재배포 성공을 확인한다.
+6. [연맹 웹](https://jhbahk.github.io/puzzle-of-z-web/alliance/)에서 **관리자 로그인** → PIN `7777` → 선택한 번호의 닉네임 또는 좌표 수정 → 저장. 지도 데이터는 D1에 영구 저장되고 다른 회원은 새로고침하여 확인할 수 있다.
+
+**주의:** PIN은 GitHub Secret/Cloudflare Secret에만 입력하고 채팅·웹 HTML·JS·공개 저장소에는 넣지 않는다. 4자리 PIN은 추측될 수 있으므로 IP별 15분 잠금 정책을 적용했지만 고도의 보안은 제공하지 않는다. GitHub Actions 비밀값 등록은 사용자 GitHub 권한과 Cloudflare 계정에서 직접 진행해야 하며, 여기서는 이 계정의 외부 자격 증명을 대신 발급할 수 없다.
+
+## 연맹장 편집용 서버 연결 (수동 대안)
 Cloudflare 계정에 Worker와 D1 데이터베이스를 만들어야 함. 이 단계는 GitHub Pages만으로 자동 실행할 수 없음.
 
 1. 별도 폴더 `alliance/backend/`를 로컬에 복사하고, Node.js / npm / Cloudflare Wrangler 환경 준비.
