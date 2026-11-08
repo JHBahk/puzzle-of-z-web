@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#10263c">
+  <meta name="description" content="Puzzle of Z BAM 연맹 100자리 기지 배치도와 실시간 좌표·닉네임 관리">
+  <title>BAM 연맹 | 기지 좌표 관리</title>
+  <link rel="stylesheet" href="./style.css?v=3">
+  <script defer src="./app.js?v=3"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="top-inner"><a class="brand" href="./" aria-label="BAM 연맹 좌표 홈"><span class="brand-symbol">B<span>·</span></span><span><strong>BAM</strong><small>ALLIANCE · S1056</small></span></a>
+      <div class="top-actions"><span class="online-indicator"><i></i>공개 조회</span><button class="top-button" id="refresh" title="최신 데이터 다시 읽기">↻ <span>새로고침</span></button><button class="top-button admin-button" id="adminOpen">관리자 로그인</button></div>
+    </div>
+  </header>
+  <main class="container">
+    <section class="intro">
+      <div class="eyebrow">PUZZLE OF Z / BAM BASE PLANNER</div><div class="intro-row"><div><h1>연맹 기지 <em>배치 현황</em></h1><p>검증된 100자리 좌표를 기준으로 닉네임과 배치를 확인합니다. 번호를 선택하면 자세한 정보를 볼 수 있습니다.</p></div><div class="intro-mark" aria-hidden="true">100<span>HQ</span></div></div>
+    </section>
+    <section class="metrics" aria-label="현황">
+      <div class="metric"><span>지휘센터 자리</span><strong id="countTotal">100</strong><small>고정 번호 1–100</small></div>
+      <div class="metric"><span>닉네임 등록</span><strong id="countRegistered">0</strong><small>연맹원 배치 완료</small></div>
+      <div class="metric"><span>빈 자리</span><strong id="countVacant">100</strong><small>등록 가능</small></div>
+      <div class="metric"><span>관리 상태</span><strong id="modeStatus" class="mode-small">공개 조회</strong><small id="updated">기준 좌표 불러오는 중</small></div>
+    </section>
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    <section class="workbench">
+      <div class="view-column">
+        <div class="section-bar"><div><h2>기지 배치도</h2><p>45° 실제 좌표 격자 · 번호를 탭해서 선택</p></div><div class="bar-actions"><button class="quiet" id="exportSvg" title="표시된 배치도 SVG로 저장">지도 저장 ↓</button><button class="quiet" id="resetZoom">화면 맞춤</button></div></div>
+        <div class="map-card">
+          <div class="legend"><span><i class="swatch hq"></i>지휘센터</span><span><i class="swatch named"></i>닉네임 등록</span><span><i class="swatch edge"></i>황무지 경계</span><span><i class="swatch outpost"></i>전초</span><span><i class="swatch facility"></i>시설</span><span><i class="swatch mountain"></i>산</span></div>
+          <div class="map-stage" id="mapStage"><svg id="mapSvg" role="img" aria-label="100개 지휘센터와 연맹 시설 좌표 지도" xmlns="http://www.w3.org/2000/svg" tabindex="0"></svg></div>
+          <div class="map-foot"><span><i class="foot-dot"></i> 기준: 음향함정 (297, 533) · 연맹 보루 (299, 535)</span><span>확대 <button id="zoomOut" aria-label="축소">−</button><b id="zoomLabel">100%</b><button id="zoomIn" aria-label="확대">+</button></span></div>
+        </div>
+        <div class="map-note"><strong>배치 기준</strong> 지휘센터와 주요 시설은 2×2, 전초기지는 1×1입니다. 산과 건물 겹침 여부를 계산하며, 실제 게임 내 장애물·황무지 경계는 최종 확인이 필요합니다.</div>
+      </div>
+      <aside class="side-column">
+        <section class="panel focus-panel"><div class="panel-label">SELECTED LOCATION</div><div class="focus-head"><div class="num-chip" id="selNum">01</div><div><h2 id="selName">미등록 자리</h2><span id="selSub">지휘센터 슬롯</span></div></div><div class="coord-grid"><div><small>X 좌표</small><strong id="selX">—</strong></div><div><small>Y 좌표</small><strong id="selY">—</strong></div></div><button id="editOpen" class="primary-button" hidden>이 자리 수정하기</button><p class="focus-help" id="focusHelp">지도 또는 아래 목록에서 자리를 선택하세요.</p></section>
+        <section class="panel list-panel"><div class="panel-top"><h2>지휘센터 목록 <span id="listCount">100</span></h2><div class="switches" role="group" aria-label="자리 필터"><button class="active" data-filter="all">전체</button><button data-filter="named">등록</button><button data-filter="vacant">빈자리</button></div></div><label class="search-box"><span>⌕</span><input id="search" type="search" autocomplete="off" placeholder="번호 · 닉네임 · X,Y 검색" aria-label="지휘센터 검색"></label><div id="slotList" class="slot-list"></div></section>
+      </aside>
+    </section>
+    <footer>PUZZLE OF Z · BAM ALLIANCE <span>연맹원 좌표 전용 · 폐지줍기 DB와 별개</span></footer>
+  </main>
+  <div class="overlay" id="loginDialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle"><button class="close" data-close="loginDialog" aria-label="닫기">×</button><div class="dialog-icon">◆</div><h2 id="loginTitle">연맹장 관리 모드</h2><p>비밀번호로 로그인하면 닉네임과 좌표를 편집할 수 있습니다.</p><form id="loginForm"><label class="field-label" for="pinInput">관리 비밀번호</label><input id="pinInput" type="password" inputmode="numeric" autocomplete="current-password" placeholder="비밀번호 입력" required maxlength="32"><div id="loginError" class="error"></div><button class="primary-button" type="submit">관리자 로그인</button></form><small>연맹원 조회는 비밀번호 없이 사용할 수 있습니다.</small></div></div>
+  <div class="overlay" id="editDialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="editTitle"><button class="close" data-close="editDialog" aria-label="닫기">×</button><div class="dialog-icon">✎</div><h2 id="editTitle">지휘센터 수정</h2><p>지휘센터 번호는 유지됩니다. 닉네임 또는 좌표를 수정하면 지도에 반영됩니다.</p><form id="editForm"><div class="form-columns"><div><label class="field-label" for="editNumber">번호</label><input id="editNumber" readonly></div><div><label class="field-label" for="editNickname">닉네임</label><input id="editNickname" maxlength="24" autocomplete="off" placeholder="예: 크로미"></div><div><label class="field-label" for="editX">X 좌표</label><input id="editX" type="number" min="0" max="2000" required></div><div><label class="field-label" for="editY">Y 좌표</label><input id="editY" type="number" min="0" max="2000" required></div></div><div id="editError" class="error"></div><button class="primary-button" type="submit">GitHub가 아닌 별도 DB에 저장</button></form><small>2×2 건물 충돌 및 녹색 영역을 서버에서 다시 검사합니다.</small></div></div>
+</body></html>
