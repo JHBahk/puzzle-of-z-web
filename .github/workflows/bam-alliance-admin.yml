@@ -94,7 +94,7 @@ jobs:
           python3 - <<'PY'
           import json, pathlib, re
           log=pathlib.Path("/tmp/bam-worker-deploy.log").read_text()
-          matches=re.findall(r"https://[a-zA-Z0-9.-]+\\.workers\\.dev",log)
+          matches=re.findall(r"https://[a-zA-Z0-9.-]+\.workers\.dev",log)
           if not matches: raise RuntimeError("Could not detect workers.dev URL. Check Worker subdomain activation.")
           url=matches[-1].rstrip("/")
           cfg=pathlib.Path("alliance/config.json")
