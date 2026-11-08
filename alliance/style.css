@@ -49,3 +49,45 @@ body[data-admin="1"] .mode-small{color:#0b7a6f}
  .auth-header p{font-size:11px}
  .admin-note .admin-tools .reset-button{margin-left:0}
 }
+
+
+/* Map-first BAM layout, 2026-11-09: top counters removed, details follow map */
+.workbench{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:16px;
+  max-width:1180px;
+  margin:0 auto;
+  padding-top:20px;
+}
+.view-column,.side-column{width:100%;min-width:0;max-width:100%}
+.side-column{display:flex;flex-direction:column;gap:14px}
+.workbench .section-bar{margin:0 0 12px}
+.workbench .map-stage{height:clamp(350px,64vw,760px);min-height:0}
+.workbench .map-note{margin-top:0}
+.workbench .focus-panel{border:1px solid #c8dcd9}
+.workbench .list-panel .slot-list{max-height:520px}
+.workbench .admin-note{margin:0}
+@media (min-width:760px){
+  .workbench .focus-panel{
+    display:grid;
+    grid-template-columns:minmax(210px,1fr) minmax(230px,1fr) minmax(160px,230px);
+    column-gap:22px;
+    row-gap:10px;
+    align-items:center;
+  }
+  .workbench .focus-panel .panel-label{grid-column:1/-1;margin:0}
+  .workbench .focus-panel .focus-head{grid-column:1}
+  .workbench .focus-panel .coord-grid{grid-column:2;margin:0}
+  .workbench .focus-panel .primary-button:not([hidden]){grid-column:3;margin:0}
+  .workbench .focus-panel .focus-help{grid-column:1/-1;margin:0}
+}
+@media (max-width:700px){
+  .workbench{padding-top:15px;gap:12px}
+  .workbench .section-bar{margin-bottom:10px}
+  .workbench .map-stage{height:350px;min-height:0}
+  .workbench .focus-panel{padding:15px}
+  .workbench .focus-panel .coord-grid{margin:13px 0}
+  .workbench .list-panel .slot-list{max-height:460px}
+}
