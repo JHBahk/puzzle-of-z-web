@@ -1,0 +1,684 @@
+{
+  "schema_version": 1,
+  "project": "Puzzle of Z | BAM Alliance Base",
+  "server": 1056,
+  "timezone": "Asia/Seoul",
+  "layout_version": "V2-100-verified-2026-11-01",
+  "coordinate_basis": "2x2 building bottom representative cell",
+  "facilities": [
+    {
+      "key": "fort",
+      "name": "보루",
+      "x": 299,
+      "y": 535
+    },
+    {
+      "key": "sound",
+      "name": "음향함정",
+      "x": 297,
+      "y": 533
+    },
+    {
+      "key": "steel",
+      "name": "강철공장",
+      "x": 301,
+      "y": 533
+    },
+    {
+      "key": "warehouse",
+      "name": "창고",
+      "x": 313,
+      "y": 537
+    },
+    {
+      "key": "hospital",
+      "name": "병원",
+      "x": 315,
+      "y": 535
+    }
+  ],
+  "outposts": [
+    {
+      "number": 1,
+      "x": 287,
+      "y": 535
+    },
+    {
+      "number": 2,
+      "x": 298,
+      "y": 546
+    },
+    {
+      "number": 3,
+      "x": 298,
+      "y": 524
+    },
+    {
+      "number": 4,
+      "x": 309,
+      "y": 535
+    }
+  ],
+  "mountains": [
+    {
+      "x": 299,
+      "y": 531
+    },
+    {
+      "x": 286,
+      "y": 538
+    },
+    {
+      "x": 300,
+      "y": 548
+    }
+  ],
+  "reference_mountain_unverified": {
+    "x": 318,
+    "y": 538
+  },
+  "slots": [
+    {
+      "number": 1,
+      "x": 293,
+      "y": 531,
+      "nickname": ""
+    },
+    {
+      "number": 2,
+      "x": 293,
+      "y": 535,
+      "nickname": ""
+    },
+    {
+      "number": 3,
+      "x": 295,
+      "y": 529,
+      "nickname": ""
+    },
+    {
+      "number": 4,
+      "x": 295,
+      "y": 537,
+      "nickname": ""
+    },
+    {
+      "number": 5,
+      "x": 291,
+      "y": 533,
+      "nickname": ""
+    },
+    {
+      "number": 6,
+      "x": 297,
+      "y": 527,
+      "nickname": ""
+    },
+    {
+      "number": 7,
+      "x": 297,
+      "y": 539,
+      "nickname": ""
+    },
+    {
+      "number": 8,
+      "x": 302,
+      "y": 528,
+      "nickname": ""
+    },
+    {
+      "number": 9,
+      "x": 291,
+      "y": 529,
+      "nickname": ""
+    },
+    {
+      "number": 10,
+      "x": 291,
+      "y": 537,
+      "nickname": ""
+    },
+    {
+      "number": 11,
+      "x": 293,
+      "y": 527,
+      "nickname": ""
+    },
+    {
+      "number": 12,
+      "x": 293,
+      "y": 539,
+      "nickname": ""
+    },
+    {
+      "number": 13,
+      "x": 301,
+      "y": 539,
+      "nickname": ""
+    },
+    {
+      "number": 14,
+      "x": 303,
+      "y": 537,
+      "nickname": ""
+    },
+    {
+      "number": 15,
+      "x": 300,
+      "y": 526,
+      "nickname": ""
+    },
+    {
+      "number": 16,
+      "x": 304,
+      "y": 530,
+      "nickname": ""
+    },
+    {
+      "number": 17,
+      "x": 289,
+      "y": 531,
+      "nickname": ""
+    },
+    {
+      "number": 18,
+      "x": 289,
+      "y": 535,
+      "nickname": ""
+    },
+    {
+      "number": 19,
+      "x": 295,
+      "y": 525,
+      "nickname": ""
+    },
+    {
+      "number": 20,
+      "x": 295,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 21,
+      "x": 299,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 22,
+      "x": 305,
+      "y": 535,
+      "nickname": ""
+    },
+    {
+      "number": 23,
+      "x": 306,
+      "y": 532,
+      "nickname": ""
+    },
+    {
+      "number": 24,
+      "x": 287,
+      "y": 533,
+      "nickname": ""
+    },
+    {
+      "number": 25,
+      "x": 289,
+      "y": 527,
+      "nickname": ""
+    },
+    {
+      "number": 26,
+      "x": 289,
+      "y": 539,
+      "nickname": ""
+    },
+    {
+      "number": 27,
+      "x": 291,
+      "y": 525,
+      "nickname": ""
+    },
+    {
+      "number": 28,
+      "x": 291,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 29,
+      "x": 297,
+      "y": 523,
+      "nickname": ""
+    },
+    {
+      "number": 30,
+      "x": 297,
+      "y": 543,
+      "nickname": ""
+    },
+    {
+      "number": 31,
+      "x": 303,
+      "y": 525,
+      "nickname": ""
+    },
+    {
+      "number": 32,
+      "x": 303,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 33,
+      "x": 305,
+      "y": 527,
+      "nickname": ""
+    },
+    {
+      "number": 34,
+      "x": 305,
+      "y": 539,
+      "nickname": ""
+    },
+    {
+      "number": 35,
+      "x": 287,
+      "y": 529,
+      "nickname": ""
+    },
+    {
+      "number": 36,
+      "x": 293,
+      "y": 523,
+      "nickname": ""
+    },
+    {
+      "number": 37,
+      "x": 293,
+      "y": 543,
+      "nickname": ""
+    },
+    {
+      "number": 38,
+      "x": 301,
+      "y": 523,
+      "nickname": ""
+    },
+    {
+      "number": 39,
+      "x": 301,
+      "y": 543,
+      "nickname": ""
+    },
+    {
+      "number": 40,
+      "x": 307,
+      "y": 529,
+      "nickname": ""
+    },
+    {
+      "number": 41,
+      "x": 307,
+      "y": 537,
+      "nickname": ""
+    },
+    {
+      "number": 42,
+      "x": 308,
+      "y": 534,
+      "nickname": ""
+    },
+    {
+      "number": 43,
+      "x": 285,
+      "y": 531,
+      "nickname": ""
+    },
+    {
+      "number": 44,
+      "x": 285,
+      "y": 535,
+      "nickname": ""
+    },
+    {
+      "number": 45,
+      "x": 295,
+      "y": 521,
+      "nickname": ""
+    },
+    {
+      "number": 46,
+      "x": 295,
+      "y": 545,
+      "nickname": ""
+    },
+    {
+      "number": 47,
+      "x": 299,
+      "y": 521,
+      "nickname": ""
+    },
+    {
+      "number": 48,
+      "x": 299,
+      "y": 545,
+      "nickname": ""
+    },
+    {
+      "number": 49,
+      "x": 309,
+      "y": 531,
+      "nickname": ""
+    },
+    {
+      "number": 50,
+      "x": 287,
+      "y": 525,
+      "nickname": ""
+    },
+    {
+      "number": 51,
+      "x": 287,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 52,
+      "x": 289,
+      "y": 523,
+      "nickname": ""
+    },
+    {
+      "number": 53,
+      "x": 289,
+      "y": 543,
+      "nickname": ""
+    },
+    {
+      "number": 54,
+      "x": 305,
+      "y": 523,
+      "nickname": ""
+    },
+    {
+      "number": 55,
+      "x": 305,
+      "y": 543,
+      "nickname": ""
+    },
+    {
+      "number": 56,
+      "x": 307,
+      "y": 525,
+      "nickname": ""
+    },
+    {
+      "number": 57,
+      "x": 307,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 58,
+      "x": 285,
+      "y": 527,
+      "nickname": ""
+    },
+    {
+      "number": 59,
+      "x": 291,
+      "y": 521,
+      "nickname": ""
+    },
+    {
+      "number": 60,
+      "x": 291,
+      "y": 545,
+      "nickname": ""
+    },
+    {
+      "number": 61,
+      "x": 303,
+      "y": 521,
+      "nickname": ""
+    },
+    {
+      "number": 62,
+      "x": 303,
+      "y": 545,
+      "nickname": ""
+    },
+    {
+      "number": 63,
+      "x": 309,
+      "y": 527,
+      "nickname": ""
+    },
+    {
+      "number": 64,
+      "x": 309,
+      "y": 539,
+      "nickname": ""
+    },
+    {
+      "number": 65,
+      "x": 283,
+      "y": 533,
+      "nickname": ""
+    },
+    {
+      "number": 66,
+      "x": 297,
+      "y": 519,
+      "nickname": ""
+    },
+    {
+      "number": 67,
+      "x": 311,
+      "y": 533,
+      "nickname": ""
+    },
+    {
+      "number": 68,
+      "x": 283,
+      "y": 529,
+      "nickname": ""
+    },
+    {
+      "number": 69,
+      "x": 283,
+      "y": 537,
+      "nickname": ""
+    },
+    {
+      "number": 70,
+      "x": 293,
+      "y": 519,
+      "nickname": ""
+    },
+    {
+      "number": 71,
+      "x": 293,
+      "y": 547,
+      "nickname": ""
+    },
+    {
+      "number": 72,
+      "x": 301,
+      "y": 519,
+      "nickname": ""
+    },
+    {
+      "number": 73,
+      "x": 311,
+      "y": 529,
+      "nickname": ""
+    },
+    {
+      "number": 74,
+      "x": 285,
+      "y": 543,
+      "nickname": ""
+    },
+    {
+      "number": 75,
+      "x": 287,
+      "y": 545,
+      "nickname": ""
+    },
+    {
+      "number": 76,
+      "x": 307,
+      "y": 545,
+      "nickname": ""
+    },
+    {
+      "number": 77,
+      "x": 309,
+      "y": 543,
+      "nickname": ""
+    },
+    {
+      "number": 78,
+      "x": 281,
+      "y": 531,
+      "nickname": ""
+    },
+    {
+      "number": 79,
+      "x": 281,
+      "y": 535,
+      "nickname": ""
+    },
+    {
+      "number": 80,
+      "x": 283,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 81,
+      "x": 289,
+      "y": 547,
+      "nickname": ""
+    },
+    {
+      "number": 82,
+      "x": 295,
+      "y": 517,
+      "nickname": ""
+    },
+    {
+      "number": 83,
+      "x": 295,
+      "y": 549,
+      "nickname": ""
+    },
+    {
+      "number": 84,
+      "x": 299,
+      "y": 517,
+      "nickname": ""
+    },
+    {
+      "number": 85,
+      "x": 305,
+      "y": 547,
+      "nickname": ""
+    },
+    {
+      "number": 86,
+      "x": 311,
+      "y": 541,
+      "nickname": ""
+    },
+    {
+      "number": 87,
+      "x": 313,
+      "y": 531,
+      "nickname": ""
+    },
+    {
+      "number": 88,
+      "x": 281,
+      "y": 539,
+      "nickname": ""
+    },
+    {
+      "number": 89,
+      "x": 291,
+      "y": 549,
+      "nickname": ""
+    },
+    {
+      "number": 90,
+      "x": 303,
+      "y": 549,
+      "nickname": ""
+    },
+    {
+      "number": 91,
+      "x": 279,
+      "y": 533,
+      "nickname": ""
+    },
+    {
+      "number": 92,
+      "x": 297,
+      "y": 515,
+      "nickname": ""
+    },
+    {
+      "number": 93,
+      "x": 297,
+      "y": 551,
+      "nickname": ""
+    },
+    {
+      "number": 94,
+      "x": 279,
+      "y": 537,
+      "nickname": ""
+    },
+    {
+      "number": 95,
+      "x": 293,
+      "y": 551,
+      "nickname": ""
+    },
+    {
+      "number": 96,
+      "x": 301,
+      "y": 551,
+      "nickname": ""
+    },
+    {
+      "number": 97,
+      "x": 277,
+      "y": 535,
+      "nickname": ""
+    },
+    {
+      "number": 98,
+      "x": 295,
+      "y": 553,
+      "nickname": ""
+    },
+    {
+      "number": 99,
+      "x": 299,
+      "y": 553,
+      "nickname": ""
+    },
+    {
+      "number": 100,
+      "x": 297,
+      "y": 555,
+      "nickname": ""
+    }
+  ],
+  "updated_at_kst": "2026-11-02T08:00:00+09:00",
+  "note": "Prior 104-slot layout minus former slots 74 89 93 97, facilities warehouse and hospital X-2, renumbered 1-100 by distance from sound trap. Do not modify raid targets."
+}
