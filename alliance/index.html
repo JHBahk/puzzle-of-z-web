@@ -5,13 +5,13 @@
   <meta name="theme-color" content="#10263c">
   <meta name="description" content="Puzzle of Z BAM 연맹 100자리 기지 배치도와 실시간 좌표·닉네임 관리">
   <title>BAM 연맹 | 기지 좌표 관리</title>
-  <link rel="stylesheet" href="./style.css?v=3">
-  <script defer src="./app.js?v=3"></script>
+  <link rel="stylesheet" href="./style.css?v=5">
+  <script defer src="./app.js?v=5"></script>
 </head>
 <body>
   <header class="topbar">
-    <div class="top-inner"><a class="brand" href="./" aria-label="BAM 연맹 좌표 홈"><span class="brand-symbol">B<span>·</span></span><span><strong>BAM</strong><small>ALLIANCE · S1056</small></span></a>
-      <div class="top-actions"><span class="online-indicator"><i></i>공개 조회</span><button class="top-button" id="refresh" title="최신 데이터 다시 읽기">↻ <span>새로고침</span></button><button class="top-button admin-button" id="adminOpen">관리자 로그인</button></div>
+    <div class="top-inner"><div class="brand"><a class="brand-symbol" href="./admin.html" aria-label="연맹원 관리 페이지 열기" title="관리 페이지 열기">B<span>·</span></a><a class="brand-word" href="./"><strong>BAM</strong><small>ALLIANCE · S1056</small></a></div>
+      <div class="top-actions"><span class="online-indicator"><i></i>공개 조회</span><button class="top-button" id="refresh" title="최신 데이터 다시 읽기">↻ <span>새로고침</span></button></div>
     </div>
   </header>
   <main class="container">
@@ -42,6 +42,5 @@
     </section>
     <footer>PUZZLE OF Z · BAM ALLIANCE <span>연맹원 좌표 전용 · 폐지줍기 DB와 별개</span></footer>
   </main>
-  <div class="overlay" id="loginDialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="loginTitle"><button class="close" data-close="loginDialog" aria-label="닫기">×</button><div class="dialog-icon">◆</div><h2 id="loginTitle">연맹장 관리 모드</h2><p>비밀번호로 로그인하면 닉네임과 좌표를 편집할 수 있습니다.</p><form id="loginForm"><label class="field-label" for="pinInput">관리 비밀번호</label><input id="pinInput" type="password" inputmode="numeric" autocomplete="current-password" placeholder="비밀번호 입력" required maxlength="32"><div id="loginError" class="error"></div><button class="primary-button" type="submit">관리자 로그인</button></form><small>연맹원 조회는 비밀번호 없이 사용할 수 있습니다.</small></div></div>
-  <div class="overlay" id="editDialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="editTitle"><button class="close" data-close="editDialog" aria-label="닫기">×</button><div class="dialog-icon">✎</div><h2 id="editTitle">지휘센터 수정</h2><p>지휘센터 번호는 유지됩니다. 닉네임 또는 좌표를 수정하면 지도에 반영됩니다.</p><form id="editForm"><div class="form-columns"><div><label class="field-label" for="editNumber">번호</label><input id="editNumber" readonly></div><div><label class="field-label" for="editNickname">닉네임</label><input id="editNickname" maxlength="24" autocomplete="off" placeholder="예: 크로미"></div><div><label class="field-label" for="editX">X 좌표</label><input id="editX" type="number" min="0" max="2000" required></div><div><label class="field-label" for="editY">Y 좌표</label><input id="editY" type="number" min="0" max="2000" required></div></div><div id="editError" class="error"></div><button class="primary-button" type="submit">변경사항 저장</button></form><small>2×2 건물 충돌 및 녹색 영역을 서버에서 다시 검사합니다.</small></div></div>
+  <div class="overlay" id="editDialog" hidden><div class="dialog" role="dialog" aria-modal="true" aria-labelledby="editTitle"><button class="close" data-close="editDialog" aria-label="닫기">×</button><div class="dialog-icon">✎</div><h2 id="editTitle">지휘센터 수정</h2><p>지휘센터 번호는 유지됩니다. 닉네임 또는 좌표를 수정하면 지도가 바뀝니다.</p><form id="editForm"><div class="form-columns"><div><label class="field-label" for="editNumber">번호</label><input id="editNumber" readonly></div><div><label class="field-label" for="editNickname">닉네임</label><input id="editNickname" maxlength="24" autocomplete="off" placeholder="예: 크로미"></div><div><label class="field-label" for="editX">X 좌표</label><input id="editX" type="number" min="0" max="2000" required></div><div><label class="field-label" for="editY">Y 좌표</label><input id="editY" type="number" min="0" max="2000" required></div></div><div id="editError" class="error"></div><button class="primary-button" type="submit">변경사항 저장</button></form><small>2×2 건물 충돌 및 녹색 영역을 이 페이지에서 검사합니다.</small></div></div>
 </body></html>
