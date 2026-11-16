@@ -317,9 +317,9 @@ function starFromOil(v){
  const oil=Number(match[1])*(mult[match[2]]||1);
  return oil>=24000?3:oil>=18000?2:oil>=12000?1:0;
 }
-function isBust(t){return t.star_tier===-1||t.scouting_result==="no_resources";}
+function isBust(t){return t.star_tier===-1||(t.scouting_result==="no_resources"&&![0,1,2,3].includes(t.star_tier));}
 function scoutTierText(t){
- if(isBust(t))return "꽝별"+([0,1,2,3].includes(t.star_tier)?" · 과거 ★"+t.star_tier:"");
+ if(isBust(t))return "꽝별";
  return t.star_tier==null?"별 미지정":"★"+Math.max(t.star_tier,starFromOil(t.resources?.oil));
 }
 async function reportScoutingMissing(id,x,y){
